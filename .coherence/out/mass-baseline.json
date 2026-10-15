@@ -21,12 +21,12 @@
   },
   {
     "key": "lines|Easton MCP",
-    "value": 120,
+    "value": 117,
     "unit": "lines"
   },
   {
     "key": "lines|total",
-    "value": 120,
+    "value": 117,
     "unit": "lines"
   },
   {
@@ -41,7 +41,7 @@
   },
   {
     "key": "undocumented|symbols",
-    "value": 8,
+    "value": 9,
     "unit": "symbols"
   }
 ]
