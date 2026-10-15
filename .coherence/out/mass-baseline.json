@@ -1,0 +1,47 @@
+[
+  {
+    "key": "deps|dev",
+    "value": 7,
+    "unit": "deps"
+  },
+  {
+    "key": "deps|direct",
+    "value": 8,
+    "unit": "deps"
+  },
+  {
+    "key": "deps|transitive",
+    "value": 304,
+    "unit": "deps"
+  },
+  {
+    "key": "files|total",
+    "value": 7,
+    "unit": "files"
+  },
+  {
+    "key": "lines|Easton MCP",
+    "value": 120,
+    "unit": "lines"
+  },
+  {
+    "key": "lines|total",
+    "value": 120,
+    "unit": "lines"
+  },
+  {
+    "key": "measure|tests",
+    "value": 3,
+    "unit": "cases"
+  },
+  {
+    "key": "symbols|total",
+    "value": 9,
+    "unit": "symbols"
+  },
+  {
+    "key": "undocumented|symbols",
+    "value": 8,
+    "unit": "symbols"
+  }
+]

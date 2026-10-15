@@ -1,0 +1,19 @@
+{
+  "language": "typescript",
+  "codeExt": ["ts"],
+  "outputDir": ".coherence/out",
+  "entryDir": ".",
+  "sources": ["src", "api"],
+  "typecheck": ["npm", "run", "typecheck"],
+  "test": ["npx", "vitest", "run", "-t"],
+  "ignore": ["node_modules", ".git", "dist", ".vercel", ".coherence"],
+  "mass": {
+    "measures": [
+      {
+        "key": "tests",
+        "cmd": ["sh", "-c", "npx vitest run --reporter=json 2>/dev/null | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).numTotalTests))\""],
+        "unit": "cases"
+      }
+    ]
+  }
+}
