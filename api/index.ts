@@ -3,8 +3,8 @@ import { getRequestListener } from '@hono/node-server'
 type Listener = ReturnType<typeof getRequestListener>
 
 async function buildApp(): Promise<Listener> {
-  const { createApp } = await import('../src/app.js')
-  return getRequestListener(createApp().fetch)
+  const { createAppFromEnv } = await import('../src/bootstrap.js')
+  return getRequestListener(createAppFromEnv(process.env).fetch)
 }
 
 let ready: Promise<Listener> | null = null

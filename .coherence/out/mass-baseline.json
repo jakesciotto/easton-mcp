@@ -16,32 +16,42 @@
   },
   {
     "key": "files|total",
-    "value": 7,
+    "value": 28,
     "unit": "files"
   },
   {
     "key": "lines|Easton MCP",
-    "value": 117,
+    "value": 139,
+    "unit": "lines"
+  },
+  {
+    "key": "lines|Easton MCP auth",
+    "value": 1720,
+    "unit": "lines"
+  },
+  {
+    "key": "lines|Easton MCP transport",
+    "value": 335,
     "unit": "lines"
   },
   {
     "key": "lines|total",
-    "value": 117,
+    "value": 2194,
     "unit": "lines"
   },
   {
     "key": "measure|tests",
-    "value": 3,
+    "value": 41,
     "unit": "cases"
   },
   {
     "key": "symbols|total",
-    "value": 9,
+    "value": 78,
     "unit": "symbols"
   },
   {
     "key": "undocumented|symbols",
-    "value": 9,
+    "value": 78,
     "unit": "symbols"
   }
 ]

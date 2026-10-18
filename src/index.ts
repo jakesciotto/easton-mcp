@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server'
-import { createApp } from './app.js'
+import { createAppFromEnv } from './bootstrap.js'
+import { portFromEnv } from './auth/config.js'
 
-const port = Number(process.env.PORT ?? 8787)
-serve({ fetch: createApp().fetch, port }, info => {
+serve({ fetch: createAppFromEnv(process.env).fetch, port: portFromEnv(process.env) }, info => {
   console.log(`easton-mcp listening on ${info.port}`)
 })

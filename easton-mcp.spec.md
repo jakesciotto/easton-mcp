@@ -8,6 +8,7 @@ A remote MCP server that gives Easton coaches, through claude.ai, read access to
 - typechecks
 - boundary "the served version equals the package version" at VERSION via guard "the served version equals the package version"
 - passes test "the health route reports the package version"
+- passes test "a request to mcp without a bearer token answers 401 with the resource metadata pointer"
 - coherence.config.json exists at root
 - CHANGELOG.md exists at root
 - docs/design.md exists at root
