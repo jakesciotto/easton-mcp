@@ -9,3 +9,4 @@ dist
 .coherence/verify-jobs.json
 .coherence/test-report.json
 .coherence/status.json
+.coherence/activity/

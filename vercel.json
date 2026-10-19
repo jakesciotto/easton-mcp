@@ -1,9 +1,18 @@
 {
+  "framework": null,
+  "outputDirectory": "public",
   "functions": {
-    "api/index.ts": { "maxDuration": 60 }
+    "api/index.ts": {
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
   ],
-  "regions": ["iad1"]
+  "regions": [
+    "iad1"
+  ]
 }
