@@ -1,3 +1,4 @@
+import { leaderboardConfigFromEnv } from './adapters/leaderboard/client.js'
 import { createApp } from './app.js'
 import { authConfigFromEnv, googleConfigFromEnv, signingKeyFromEnv, stateConfigFromEnv } from './auth/config.js'
 import { googleLogin } from './auth/google.js'
@@ -11,5 +12,6 @@ export function createAppFromEnv(env: Record<string, string | undefined>) {
     store: supabaseStore(state.url, state.serviceRoleKey),
     keys: loadSigningKeys(signingKeyFromEnv(env)),
     google: googleLogin({ config: googleConfigFromEnv(env), fetch }),
+    leaderboard: leaderboardConfigFromEnv(env) ?? undefined,
   })
 }

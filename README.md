@@ -24,7 +24,7 @@ Use Node 22 and npm 11 for installs, because npm 10 fails to resolve this tree.
 | GOOGLE_SERVICE_ACCOUNT_EMAIL | Service account with domain-wide delegation. Phase 3. |
 | GOOGLE_PRIVATE_KEY | Private key of that service account. Phase 3. |
 | GOOGLE_WORKSPACE_ADMIN_EMAIL | Admin the service account impersonates for Directory reads. Phase 3. |
-| LEADERBOARD_SUPABASE_URL | Leaderboard project URL. Phase 2. |
+| LEADERBOARD_SUPABASE_URL | Leaderboard project URL. Phase 2. Optional: the adapter mounts only when both leaderboard values exist. |
 | LEADERBOARD_SUPABASE_PUBLISHABLE_KEY | Leaderboard publishable key. RLS stays enforced. Phase 2. |
 | MCP_SUPABASE_URL | Server state project URL. |
 | MCP_SUPABASE_SERVICE_ROLE_KEY | Server state project service role key. Never a product project key. |

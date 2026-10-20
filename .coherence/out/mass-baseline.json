@@ -16,17 +16,22 @@
   },
   {
     "key": "files|total",
-    "value": 28,
+    "value": 30,
     "unit": "files"
   },
   {
     "key": "lines|Easton MCP",
-    "value": 139,
+    "value": 144,
     "unit": "lines"
   },
   {
     "key": "lines|Easton MCP auth",
     "value": 1720,
+    "unit": "lines"
+  },
+  {
+    "key": "lines|Easton MCP leaderboard adapter",
+    "value": 39,
     "unit": "lines"
   },
   {
@@ -36,7 +41,7 @@
   },
   {
     "key": "lines|total",
-    "value": 2194,
+    "value": 2238,
     "unit": "lines"
   },
   {
@@ -46,12 +51,12 @@
   },
   {
     "key": "symbols|total",
-    "value": 78,
+    "value": 83,
     "unit": "symbols"
   },
   {
     "key": "undocumented|symbols",
-    "value": 78,
+    "value": 83,
     "unit": "symbols"
   }
 ]
