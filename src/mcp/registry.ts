@@ -14,6 +14,7 @@ export interface AuthContext {
 
 export interface ToolDef {
   name: string
+  title: string
   description: string
   scope: string
   inputSchema: z.ZodType
@@ -88,7 +89,7 @@ export function createMcpHandler(deps: {
         const write = !tool.annotations.readOnlyHint
         server.registerTool(
           tool.name,
-          { description: tool.description, inputSchema: tool.inputSchema, annotations: tool.annotations },
+          { title: tool.title, description: tool.description, inputSchema: tool.inputSchema, annotations: tool.annotations },
           async (args: unknown) => {
             const input = args ?? {}
             const key = (input as { idempotency_key?: unknown }).idempotency_key

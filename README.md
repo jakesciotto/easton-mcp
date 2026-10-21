@@ -21,8 +21,8 @@ Use Node 22 and npm 11 for installs, because npm 10 fails to resolve this tree.
 | MCP_ADMIN_GROUP | Google Group email whose members are admins. |
 | GOOGLE_OAUTH_CLIENT_ID | Google login client for coaches. Redirect URI is the public URL plus `/oauth/google/callback`. |
 | GOOGLE_OAUTH_CLIENT_SECRET | Secret of that client. |
-| GOOGLE_SERVICE_ACCOUNT_EMAIL | Service account with domain-wide delegation. Phase 3. |
-| GOOGLE_PRIVATE_KEY | Private key of that service account. Phase 3. |
+| GOOGLE_SERVICE_ACCOUNT_EMAIL | Service account with domain-wide delegation on `drive.readonly`. Optional: the docs adapter mounts only when both docs values exist. |
+| GOOGLE_PRIVATE_KEY | Private key of that service account, PEM with literal `\n` line breaks. |
 | GOOGLE_WORKSPACE_ADMIN_EMAIL | Admin the service account impersonates for Directory reads. Phase 3. |
 | LEADERBOARD_SUPABASE_URL | Leaderboard project URL. Phase 2. Optional: the adapter mounts only when both leaderboard values exist. |
 | LEADERBOARD_SUPABASE_PUBLISHABLE_KEY | Leaderboard publishable key. RLS stays enforced. Phase 2. |

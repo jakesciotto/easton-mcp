@@ -25,6 +25,10 @@ The stateless Streamable HTTP endpoint behind the bearer guard, the adapter regi
 ## why
 Each request builds its own server and transport, because Vercel functions share nothing between calls. The transport runs stateless with JSON responses, so no session id exists to lose.
 
+Every tool carries a title, a scope and the three annotations, because claude.ai grants a read only tool auto permission from readOnlyHint and the directory review requires a title on every tool. A description states what the tool does and when to call it, names the sibling tool a coach question continues with, and never tells Claude how to behave. An error names the input that failed and what a retry should change.
+
+Planned, not yet anchored: the read audit row moves off the response path, the server advertises an instructions field, and audit_log gains a response_bytes column.
+
 The registry enforces scope, not the tool. A tool declares one scope and the registry checks it against the bearer before the handler runs. A tool with the empty scope is open to every signed in coach, and whoami uses it.
 
 Every tool call writes one audit row, whether it succeeds, fails or is denied. The row keeps the input and result only for tools that write.

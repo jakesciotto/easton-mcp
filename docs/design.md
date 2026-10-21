@@ -104,9 +104,9 @@ The server authenticates with a service account that has domain-wide delegation 
 Access is limited to a registry table `easton_mcp.documents` (`drive_id`, `kind` folder|doc|sheet|slides, `title`, `writable`, `added_by`, `added_at`, `removed_at`). A folder row admits every file below it. A search outside the registry returns nothing. Admins change the registry through a tool, so a new document needs no deploy.
 
 Tools:
-- `list_documents({ folder?, type? })` read
-- `search_documents({ query, type?, limit })` full text through Drive search, scoped to the roots. read
-- `read_document({ id, range? })` a Doc returns markdown; a Sheet returns rows for one tab or A1 range; a Slides deck returns text per slide. read
+- `docs_search({ query, limit })` full text through Drive search, scoped to the registered roots. read. Shipped first for the SOP set.
+- `docs_read({ names })` one to five ids or exact titles; a Doc returns markdown through the Drive export. read. Shipped with docs_search. Sheets and Slides wait for an export type each.
+- `docs_list({ folder?, type? })` read, planned.
 - `add_comment({ id, anchor_text?, body })` coach write. A Drive comment under the coach's own name.
 - `append_rows({ sheet_id, tab, rows })` admin write, only on registry rows with `writable = true`.
 - `register_document({ drive_id, kind, writable })` admin write. Verifies the admin can open the file through the Drive API before the insert.
@@ -116,6 +116,14 @@ Resources:
 - `easton://docs/registry` the live registry rows
 
 Rate limits: Drive and Sheets reads are capped at 4 concurrent calls per coach with retry on 429, the pattern the leaderboard's sheets layer already uses.
+
+## Tool design rules
+1. A tool is a task, not an endpoint. It takes a name or an array of names, carries a shared prefix per adapter, and the adapter states its tool budget in its spec.
+2. A tool call makes one data round trip. Lookups that every call needs come from a per instance cache: the document registry for five minutes, a sync version for leaderboard reads, a Google access token for its hour.
+3. A common coach question costs at most two tool calls, which the phase gates test.
+4. Every tool carries a title, a scope and the three annotations. A description states what the tool does, when to call it and which tool continues the task, and never tells Claude how to behave. An error names the failed input and what a retry should change.
+5. Google reaches the server through jose and fetch, with no Google SDK. The function runs in iad1 beside the state project.
+6. Planned: read audits leave the response path, the server advertises an instructions field, and audit_log records response bytes.
 
 ## Writes: the rules
 1. A write tool carries `idempotency_key` in its input. The server stores the key with the result in `easton_mcp.audit_log` and returns the stored result on a repeat.

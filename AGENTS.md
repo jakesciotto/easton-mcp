@@ -25,10 +25,25 @@ _files:_ `index.ts`, `app.test.ts`, `app.ts`, `bootstrap.ts`, `index.ts`, `vites
 ### Easton MCP adapters  `src/adapters`
 One folder per product. Each folder exports one Adapter from its `index.ts` and keeps its tools, resources and prompts in sub folders, one file each.
 
-_why:_ Planned invariant, anchored at the registry mount once a second adapter ships: an adapter folder exports exactly one Adapter and the registry contract never changes for a new product. Auth and transport stay fixed while products join. The registry enforces scope, audit and the output cap for every tool, so an adapter file holds only its schema, its query and its output shape. Order of arrival: leaderboard, docs, duals, plus, matlab.
+_why:_ Planned invariant, anchored at the registry mount once a second adapter ships: an adapter folder exports exactly one Adapter and the registry contract never changes for a new product. Auth and transport stay fixed while products join. The registry enforces scope, audit and the output cap for every tool, so an adapter file holds only its schema, its query and its output shape. Order of arrival: docs search for the SOP set, then leaderboard, then duals, plus and matlab. Tools are task tools under a shared prefix per adapter, take names or arrays of names, and make one data round trip per call, so a common coach question costs at most two tool calls.
 
 _works when:_
 - typechecks
+
+### Easton MCP docs adapter  `src/adapters/docs`
+Reads registered Google Docs as the signed in coach through a service account with domain wide delegation, so Google enforces the coach's own sharing.
+
+_why:_ The first docs use is the SOP set. A coach asks how something is done at Easton, Claude calls docs_search with the words of the question, then docs_read with the id or the exact title. A question that names the SOP costs one call. The tool budget for this adapter is two read tools plus the planned admin writes, under the shared prefix docs_. The registry is the documents table in the state project. A root row of kind drive admits every document in that shared drive, in one Drive call with corpora drive. A root row of kind folder admits the direct children of that folder, because the Drive query filter in parents matches one level only, and folder rows combine into one call. A doc row admits that one document for docs_read. The registry is read through the service role key and cached for five minutes per function instance, so a warm call makes one Drive round trip for a search. docs_read makes one lookup and one export per name, in parallel across names. The server never holds a Google SDK. jose signs the delegation assertion for the coach's email and plain fetch calls the token endpoint and the Drive REST API. The token endpoint answers once per coach per hour per instance. Drive exports a Doc as text/markdown, so no converter exists in this repo. Every coach string reaches Drive inside a quoted literal with backslashes and quotes escaped, which is the only escaping the Drive query language defines. A document the coach cannot open answers found false with the reason, not an error, and a Drive failure on one name stays with that name, so the other names in the same call still answer. Only a 404 and the Drive reasons forbidden and insufficientFilePermissions mean no access; a rate limit or an export size limit surfaces with its Drive reason and a retry hint. A name that looks like a Drive id but answers nothing falls through to the title lookup. Two registered documents with one title answer found false and ask for the id. A doc row counts for the title lookup through one get per row. docs_read splits sixty percent of the result cap across the names, because JSON escaping grows markdown, and marks each truncated document. A removed registry row stays readable for up to five minutes on a warm instance, which is the cache price. Sheets and Slides wait for an export type each.
+
+_works when:_
+- typechecks
+- boundary "docs_search returns only documents inside a registered root and nothing when the registry is empty" at listInRoots via test "docs_search returns only documents inside a registered root and nothing when the registry is empty"
+- boundary "docs_read exports a document as markdown only when it sits in a registered root" at inRoots via test "docs_read exports a document as markdown only when it sits in a registered root"
+- boundary "the drive client acts as the signed in coach and reuses the token until it expires" at googleDrive via guard "the drive client acts as the signed in coach and reuses the token until it expires"
+- boundary "a coach string is quoted so it cannot change the drive filter" at driveString via guard "a coach string is quoted so it cannot change the drive filter"
+- boundary "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title" at docsRead via guard "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title"
+
+_files:_ `config.ts`, `docs.test.ts`, `drive.ts`, `index.ts`, `registry.ts`, `read.ts`, `search.ts`
 
 ### Easton MCP leaderboard adapter  `src/adapters/leaderboard`
 Phase 2. Reads easton-leaderboard through the publishable key so RLS applies, returns persisted columns only, and files data issues as the one coach write.
@@ -73,7 +88,7 @@ _files:_ `bearer.test.ts`, `clients.test.ts`, `clients.ts`, `config.test.ts`, `c
 ### Easton MCP transport  `src/mcp`
 The stateless Streamable HTTP endpoint behind the bearer guard, the adapter registry with scope enforcement and audit rows, and the built-in core adapter.
 
-_why:_ Each request builds its own server and transport, because Vercel functions share nothing between calls. The transport runs stateless with JSON responses, so no session id exists to lose. The registry enforces scope, not the tool. A tool declares one scope and the registry checks it against the bearer before the handler runs. A tool with the empty scope is open to every signed in coach, and whoami uses it. Every tool call writes one audit row, whether it succeeds, fails or is denied. The row keeps the input and result only for tools that write. Outputs are capped at 50,000 characters, well under Claude's 150,000 character limit. A longer result is cut and followed by a block that marks it truncated. A write tool must carry an idempotency key. The registry looks the key up in the audit log before the handler runs and replays the stored result on a repeat, so a retried write never lands twice. The audit row for a successful write is written after the handler, outside its error path, and a failed audit write after a successful write still returns the result, because the write already happened. A resource carries a scope like a tool and every read writes an audit row.
+_why:_ Each request builds its own server and transport, because Vercel functions share nothing between calls. The transport runs stateless with JSON responses, so no session id exists to lose. Every tool carries a title, a scope and the three annotations, because claude.ai grants a read only tool auto permission from readOnlyHint and the directory review requires a title on every tool. A description states what the tool does and when to call it, names the sibling tool a coach question continues with, and never tells Claude how to behave. An error names the input that failed and what a retry should change. Planned, not yet anchored: the read audit row moves off the response path, the server advertises an instructions field, and audit_log gains a response_bytes column. The registry enforces scope, not the tool. A tool declares one scope and the registry checks it against the bearer before the handler runs. A tool with the empty scope is open to every signed in coach, and whoami uses it. Every tool call writes one audit row, whether it succeeds, fails or is denied. The row keeps the input and result only for tools that write. Outputs are capped at 50,000 characters, well under Claude's 150,000 character limit. A longer result is cut and followed by a block that marks it truncated. A write tool must carry an idempotency key. The registry looks the key up in the audit log before the handler runs and replays the stored result on a repeat, so a retried write never lands twice. The audit row for a successful write is written after the handler, outside its error path, and a failed audit write after a successful write still returns the result, because the write already happened. A resource carries a scope like a tool and every read writes an audit row.
 
 _works when:_
 - typechecks
@@ -98,6 +113,15 @@ easton-mcp/
 │  └─ index.ts
 ├─ src/
 │  ├─ adapters/  ●
+│  │  ├─ docs/  ●
+│  │  │  ├─ tools/
+│  │  │  │  ├─ read.ts
+│  │  │  │  └─ search.ts
+│  │  │  ├─ config.ts
+│  │  │  ├─ docs.test.ts
+│  │  │  ├─ drive.ts
+│  │  │  ├─ index.ts
+│  │  │  └─ registry.ts
 │  │  └─ leaderboard/  ●
 │  │     ├─ client.ts
 │  │     └─ index.ts
