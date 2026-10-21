@@ -7,6 +7,7 @@ Reads registered Google Docs as the signed in coach through a service account wi
 - the drive client acts as the signed in coach and reuses the token until it expires
 - a coach string is quoted so it cannot change the drive filter
 - docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title
+- a collection filter searches only that root, every result names its collection and docs_list answers the registered collections
 
 ## works when
 - typechecks
@@ -15,9 +16,12 @@ Reads registered Google Docs as the signed in coach through a service account wi
 - boundary "the drive client acts as the signed in coach and reuses the token until it expires" at googleDrive via guard "the drive client acts as the signed in coach and reuses the token until it expires"
 - boundary "a coach string is quoted so it cannot change the drive filter" at driveString via guard "a coach string is quoted so it cannot change the drive filter"
 - boundary "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title" at docsRead via guard "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title"
+- boundary "a collection filter searches only that root, every result names its collection and docs_list answers the registered collections" at selectCollection via guard "a collection filter searches only that root, every result names its collection and docs_list answers the registered collections"
 
 ## why
-The first docs use is the SOP set. A coach asks how something is done at Easton, Claude calls docs_search with the words of the question, then docs_read with the id or the exact title. A question that names the SOP costs one call. The tool budget for this adapter is two read tools plus the planned admin writes, under the shared prefix docs_.
+The first docs use is the SOP set. A coach asks how something is done at Easton, Claude calls docs_search with the words of the question, then docs_read with the id or the exact title. A question that names the SOP costs one call. The tool budget for this adapter is three read tools plus the planned admin writes, under the shared prefix docs_.
+
+Each root row is a collection and its title is the collection name, so the kids and the adult shared drives answer as two collections. Every search and read result names the collection of the document, and docs_search takes an optional collection that selects root rows by title, case insensitive, before the Drive call. An unknown collection answers an error that lists the registered names, and docs_list answers the names with their ids, so Claude learns them in one call when a question names a program the titles do not.
 
 The registry is the documents table in the state project. A root row of kind drive admits every document in that shared drive, in one Drive call with corpora drive. A root row of kind folder admits the direct children of that folder, because the Drive query filter in parents matches one level only, and folder rows combine into one call. A doc row admits that one document for docs_read. The registry is read through the service role key and cached for five minutes per function instance, so a warm call makes one Drive round trip for a search. docs_read makes one lookup and one export per name, in parallel across names.
 
@@ -28,3 +32,4 @@ A document the coach cannot open answers found false with the reason, not an err
 ## refutations
 - docs_search returns only documents inside a registered root and nothing when the registry is empty: drop the driveId parameter from the drive root call -> RED
 - docs_read exports a document as markdown only when it sits in a registered root: make inRoots answer true -> RED
+- a collection filter searches only that root, every result names its collection and docs_list answers the registered collections: skip the collection filter in selectCollection -> RED

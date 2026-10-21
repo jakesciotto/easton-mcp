@@ -196,10 +196,14 @@ export async function listInRoots(
   return files.slice(0, limit)
 }
 
-export function inRoots(file: DriveFile, roots: RegistryRoot[]): boolean {
-  return roots.some(root => {
+export function rootOf(file: DriveFile, roots: RegistryRoot[]): RegistryRoot | undefined {
+  return roots.find(root => {
     if (root.kind === 'drive') return file.driveId === root.driveId
     if (root.kind === 'folder') return file.parents.includes(root.driveId)
     return file.id === root.driveId
   })
+}
+
+export function inRoots(file: DriveFile, roots: RegistryRoot[]): boolean {
+  return rootOf(file, roots) !== undefined
 }
