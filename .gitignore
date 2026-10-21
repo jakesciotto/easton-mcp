@@ -10,3 +10,5 @@ dist
 .coherence/test-report.json
 .coherence/status.json
 .coherence/activity/
+*.iam.json
+easton-mcp-*.json

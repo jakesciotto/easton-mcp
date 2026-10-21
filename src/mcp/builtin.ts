@@ -7,6 +7,7 @@ export function builtin(version: string): Adapter {
     tools: [
       {
         name: 'whoami',
+        title: 'Who am I',
         description: 'Return the signed in coach, role and granted scopes.',
         scope: '',
         inputSchema: z.object({}),

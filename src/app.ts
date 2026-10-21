@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { docs } from './adapters/docs/index.js'
+import type { DocsDeps } from './adapters/docs/index.js'
 import { leaderboard } from './adapters/leaderboard/index.js'
 import type { LeaderboardConfig } from './adapters/leaderboard/client.js'
 import { clientsStore } from './auth/clients.js'
@@ -23,6 +25,7 @@ export interface AppOptions {
   keys: SigningKeys
   google: GoogleLogin
   leaderboard?: LeaderboardConfig
+  docs?: DocsDeps
   resolveRole?: ResolveRole
   fetch?: typeof fetch
   verify?: (token: string) => Promise<AuthContext | null>
@@ -42,7 +45,11 @@ export function createApp(opts: AppOptions) {
     now: opts.now,
   })
   const verify = opts.verify ?? provider.verifyBearer
-  const adapters = [builtin(VERSION), ...(opts.leaderboard ? [leaderboard(opts.leaderboard)] : [])]
+  const adapters = [
+    builtin(VERSION),
+    ...(opts.leaderboard ? [leaderboard(opts.leaderboard)] : []),
+    ...(opts.docs ? [docs(opts.docs)] : []),
+  ]
   app.get('/health', c => c.json({ ok: true, version: VERSION, adapters: adapters.map(a => a.name) }))
   app.route('/', authRoutes({ config: opts.config, provider }))
   app.post(

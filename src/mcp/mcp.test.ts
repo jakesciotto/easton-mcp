@@ -15,6 +15,7 @@ const probe: Adapter = {
   tools: [
     {
       name: 'docs_write',
+      title: 'Docs write',
       description: 'Write a doc.',
       scope: 'docs:write',
       inputSchema: z.object({ idempotency_key: z.string().optional() }),
@@ -23,6 +24,7 @@ const probe: Adapter = {
     },
     {
       name: 'big',
+      title: 'Big',
       description: 'Return a long text.',
       scope: 'docs:read',
       inputSchema: z.object({}),
