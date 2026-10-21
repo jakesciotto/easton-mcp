@@ -16,7 +16,7 @@
   },
   {
     "key": "files|total",
-    "value": 37,
+    "value": 38,
     "unit": "files"
   },
   {
@@ -31,7 +31,7 @@
   },
   {
     "key": "lines|Easton MCP docs adapter",
-    "value": 522,
+    "value": 597,
     "unit": "lines"
   },
   {
@@ -46,22 +46,22 @@
   },
   {
     "key": "lines|total",
-    "value": 2778,
+    "value": 2853,
     "unit": "lines"
   },
   {
     "key": "measure|tests",
-    "value": 46,
+    "value": 47,
     "unit": "cases"
   },
   {
     "key": "symbols|total",
-    "value": 106,
+    "value": 109,
     "unit": "symbols"
   },
   {
     "key": "undocumented|symbols",
-    "value": 106,
+    "value": 109,
     "unit": "symbols"
   }
 ]

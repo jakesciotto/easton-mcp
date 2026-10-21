@@ -104,9 +104,9 @@ The server authenticates with a service account that has domain-wide delegation 
 Access is limited to a registry table `easton_mcp.documents` (`drive_id`, `kind` folder|doc|sheet|slides, `title`, `writable`, `added_by`, `added_at`, `removed_at`). A folder row admits every file below it. A search outside the registry returns nothing. Admins change the registry through a tool, so a new document needs no deploy.
 
 Tools:
-- `docs_search({ query, limit })` full text through Drive search, scoped to the registered roots. read. Shipped first for the SOP set.
+- `docs_search({ query, limit, collection? })` full text through Drive search, scoped to the registered roots. Each root row is a collection named by its title and every result names its collection. read. Shipped first for the SOP set.
 - `docs_read({ names })` one to five ids or exact titles; a Doc returns markdown through the Drive export. read. Shipped with docs_search. Sheets and Slides wait for an export type each.
-- `docs_list({ folder?, type? })` read, planned.
+- `docs_list()` the registered collections with their ids. read. Shipped.
 - `add_comment({ id, anchor_text?, body })` coach write. A Drive comment under the coach's own name.
 - `append_rows({ sheet_id, tab, rows })` admin write, only on registry rows with `writable = true`.
 - `register_document({ drive_id, kind, writable })` admin write. Verifies the admin can open the file through the Drive API before the insert.

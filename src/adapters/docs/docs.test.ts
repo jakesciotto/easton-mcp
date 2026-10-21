@@ -25,7 +25,9 @@ const sops: DriveFile = {
 const stray: DriveFile = { ...sops, id: '1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'Payroll', driveId: 'driveHR', parents: ['folderHR'] }
 const longTitle: DriveFile = { ...sops, id: '1cccccccccccccccccccccccccccccccccccccc', name: 'Competition-Day-Checklist-SOP' }
 const broken: DriveFile = { ...sops, id: '1dddddddddddddddddddddddddddddddddddddd', name: 'Rate limited' }
+const adult: DriveFile = { ...sops, id: '1eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', name: 'Opening the adult mat', driveId: 'driveADULT', parents: ['folderADULT'] }
 const roots: RegistryRoot[] = [{ driveId: 'driveSOP', kind: 'drive', title: 'SOPs', writable: false }]
+const programs: RegistryRoot[] = [...roots, { driveId: 'driveADULT', kind: 'drive', title: 'Adult SOPs', writable: false }]
 
 function fakeGoogle(files: DriveFile[]) {
   const calls: { url: URL; subject: string | null }[] = []
@@ -83,6 +85,34 @@ describe('docs_search returns only documents inside a registered root and nothin
     const none = (await empty.tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as { documents: unknown[] }
     expect(none.documents).toEqual([])
     expect(empty.calls).toHaveLength(0)
+  })
+})
+
+describe('a collection filter searches only that root, every result names its collection and docs_list answers the registered collections', () => {
+  it('holds', async () => {
+    const { tool, calls } = adapter([sops, adult, stray], programs)
+    type Hit = { id: string; collection: string | null }
+    const both = (await tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as { documents: Hit[] }
+    expect(both.documents.map(d => [d.id, d.collection])).toEqual([
+      [sops.id, 'SOPs'],
+      [adult.id, 'Adult SOPs'],
+    ])
+    expect(calls).toHaveLength(2)
+    const only = (await tool('docs_search').handler({ auth: coach, input: { query: 'opening', collection: 'adult sops' } })) as { documents: Hit[] }
+    expect(only.documents.map(d => [d.id, d.collection])).toEqual([[adult.id, 'Adult SOPs']])
+    expect(calls).toHaveLength(3)
+    expect(calls[2].url.searchParams.get('driveId')).toBe('driveADULT')
+    await expect(tool('docs_search').handler({ auth: coach, input: { query: 'opening', collection: 'Teens' } })).rejects.toThrow(
+      'collection "Teens" is not registered; registered collections: SOPs, Adult SOPs',
+    )
+    expect(calls).toHaveLength(3)
+    const read = (await tool('docs_read').handler({ auth: coach, input: { names: [adult.id] } })) as { documents: { collection: string | null }[] }
+    expect(read.documents[0].collection).toBe('Adult SOPs')
+    const list = (await tool('docs_list').handler({ auth: coach, input: {} })) as { collections: { name: string; id: string; kind: string }[] }
+    expect(list.collections).toEqual([
+      { name: 'SOPs', id: 'driveSOP', kind: 'drive' },
+      { name: 'Adult SOPs', id: 'driveADULT', kind: 'drive' },
+    ])
   })
 })
 

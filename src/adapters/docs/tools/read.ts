@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { RESULT_CAP } from '../../../mcp/registry.js'
 import type { ToolDef } from '../../../mcp/registry.js'
-import { driveString, inRoots, isReadableDoc, listInRoots } from '../drive.js'
+import { driveString, inRoots, isReadableDoc, listInRoots, rootOf } from '../drive.js'
 import type { DriveClient, DriveFile } from '../drive.js'
 import type { DocumentRegistry, RegistryRoot } from '../registry.js'
 
@@ -63,6 +63,7 @@ export function docsRead(deps: { drive: DriveClient; registry: DocumentRegistry 
               found: true,
               id: resolved.file.id,
               title: resolved.file.name,
+              collection: rootOf(resolved.file, roots)?.title ?? null,
               modified: resolved.file.modifiedTime,
               link: resolved.file.webViewLink,
               truncated: text.length > perDoc,
