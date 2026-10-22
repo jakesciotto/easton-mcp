@@ -1,0 +1,13 @@
+*
+!.gitignore
+!.gitattributes
+!journal/
+!journal/**
+!runs/
+!runs/**
+!work/
+!work/**
+!hooks/
+!hooks/**
+!archive-0.37/
+!archive-0.37/**

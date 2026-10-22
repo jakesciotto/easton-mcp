@@ -1,19 +1,9 @@
 {
+  "name": "easton-mcp",
   "language": "typescript",
-  "codeExt": ["ts"],
-  "outputDir": ".coherence/out",
-  "entryDir": ".",
-  "sources": ["src", "api"],
-  "typecheck": ["npm", "run", "typecheck"],
-  "test": ["npx", "vitest", "run", "-t"],
-  "ignore": ["node_modules", ".git", "dist", ".vercel", ".coherence"],
-  "mass": {
-    "measures": [
-      {
-        "key": "tests",
-        "cmd": ["sh", "-c", "npx vitest run --reporter=json 2>/dev/null | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).numTotalTests))\""],
-        "unit": "cases"
-      }
-    ]
-  }
+  "ignore": ["node_modules", "dist", ".vercel", ".coherence/archive-0.37"],
+  "wellKnown": ["Easton", "Hono", "Vercel", "Supabase", "Google", "Claude", "Smoothcomp", "WellnessLiving"],
+  "test": "npx vitest run -t {filter}",
+  "testMatch": "Tests +[1-9][0-9]* passed",
+  "testJson": "npx vitest run -t {filter} --reporter=json --outputFile={out}"
 }

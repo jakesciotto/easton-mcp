@@ -4,11 +4,5 @@ dist
 .env.*
 !.env.example
 .vercel
-.coherence/out/*
-!.coherence/out/mass-baseline.json
-.coherence/verify-jobs.json
-.coherence/test-report.json
-.coherence/status.json
-.coherence/activity/
 *.iam.json
 easton-mcp-*.json

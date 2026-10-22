@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "concepts": [
+    {
+      "name": "coach",
+      "definition": "A member of Easton staff with an eastontc.com Google account who signs in to the server through claude.ai."
+    },
+    {
+      "name": "tool",
+      "definition": "An MCP tool an adapter registers: a title, a scope, the annotations, an input schema and a handler, served through the registry."
+    },
+    {
+      "name": "resource",
+      "definition": "An MCP resource an adapter registers under a uri, with a scope the registry checks before every read."
+    },
+    {
+      "name": "role",
+      "definition": "The coach or admin standing the role resolver assigns at login and at every refresh, carried in the access token."
+    },
+    {
+      "name": "adapter",
+      "definition": "One folder per product that exports one Adapter: its tools, resources and prompts, mounted through the registry."
+    },
+    {
+      "name": "registry",
+      "definition": "The MCP handler that mounts every adapter, checks the bearer scopes, caps results and writes one audit row per call. In the docs adapter, the documents table of root rows."
+    },
+    {
+      "name": "idempotency key",
+      "definition": "A client supplied key a write tool must carry; the registry replays the stored result when the key repeats."
+    },
+    {
+      "name": "audit row",
+      "definition": "The audit_log row the registry writes for every tool call and resource read, with the outcome and, for a write, the input and result."
+    },
+    {
+      "name": "leaderboard",
+      "definition": "The easton-leaderboard product and its Supabase project, read by the leaderboard adapter through the publishable key."
+    },
+    {
+      "name": "drive",
+      "definition": "Google Drive, reached by the docs adapter as the signed in coach through the service account."
+    },
+    {
+      "name": "collection",
+      "definition": "A registered root row in the documents table, named by its title, that docs_search can filter on and docs_list answers."
+    }
+  ]
+}
