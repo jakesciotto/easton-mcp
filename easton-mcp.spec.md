@@ -5,7 +5,7 @@ A remote MCP server that gives Easton coaches, through claude.ai, read access to
 - internet: an MCP client or a browser on the public internet, before any bearer verifies
 - coach: a bearer the server minted for a verified eastontc.com account, with its role and scopes
 - state: the auth, audit and registry rows in the state project, reached with the service role key
-- google: Google's token endpoint and Drive, reached as the coach through the service account
+- google: Google's token endpoint, Drive and the Directory API, reached through the service account as the coach, or as the workspace admin for group reads
 
 ## entrances
 - route GET /health: the version and the live adapters, for anyone

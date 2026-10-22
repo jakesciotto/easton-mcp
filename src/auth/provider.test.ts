@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js'
 import { testConfig } from './fixtures.js'
 import type { GoogleLogin } from './google.js'
+import { memoryGrants, groupAccess } from './grants.js'
 import { eastonProvider } from './provider.js'
 import { memoryStore } from './store.js'
 import type { Role } from './store.js'
@@ -26,6 +27,8 @@ const google: GoogleLogin = {
     code === 'good' ? { email: `coach+${nonce.length}@eastontc.com`, name: 'Coach' } : null,
 }
 
+const ALL = testConfig.scopes.filter(s => s !== 'offline_access')
+
 function setup(now = () => Date.parse('2026-10-15T20:00:00Z'), roles = new Map<string, Role | null>()) {
   const config = testConfig
   const store = memoryStore(now)
@@ -35,7 +38,10 @@ function setup(now = () => Date.parse('2026-10-15T20:00:00Z'), roles = new Map<s
     clients: { getClient: async id => (id === client.client_id ? client : undefined) },
     keys,
     google,
-    resolveRole: async email => (roles.has(email) ? roles.get(email)! : 'coach'),
+    resolveAccess: async (email: string) => {
+      const role = roles.has(email) ? roles.get(email)! : 'coach'
+      return role ? { role, scopes: ALL } : null
+    },
     now,
   })
   return { config, store, provider, roles }
@@ -60,7 +66,7 @@ async function login(p: ReturnType<typeof setup>, verifier = randomToken()) {
   const done = await p.provider.completeLogin(state, 'good')
   const location = await p.provider.grantConsent(done!.consentToken)
   const code = new URL(location!).searchParams.get('code')!
-  return { code, verifier, state: new URL(location!).searchParams.get('state') }
+  return { code, verifier, state: new URL(location!).searchParams.get('state'), iss: new URL(location!).searchParams.get('iss') }
 }
 
 describe('an access token carries the server url as audience and is refused for another audience or after expiry', () => {
@@ -78,8 +84,9 @@ describe('an access token carries the server url as audience and is refused for 
 describe('the login flow ends in a code bound to the client, the redirect and the pkce challenge', () => {
   it('holds', async () => {
     const p = setup()
-    const { code, verifier, state } = await login(p)
+    const { code, verifier, state, iss } = await login(p)
     expect(state).toBe('xyz')
+    expect(iss).toBe(p.config.issuer)
     const tokens = await p.provider.exchangeAuthorizationCode(client, code, verifier, client.redirect_uris[0])
     expect(tokens.scope).toBe('leaderboard:read')
     expect(await p.provider.verifyBearer(tokens.access_token)).toMatchObject({ subject: 'coach+22@eastontc.com', role: 'coach' })
@@ -146,5 +153,66 @@ describe('a stale or tampered login state never reaches consent', () => {
     expect(await p.provider.completeLogin('not-a-token', 'good')).toBeNull()
     const { code } = await login(p)
     expect(await p.provider.grantConsent(code)).toBeNull()
+  })
+})
+
+describe('a token carries only the consented scopes the coach Google Groups grant, and a group change applies at the next refresh', () => {
+  it('holds', async () => {
+    const memberships = new Map<string, string[] | null>([
+      ['kids@eastontc.com', ['kids-coaches@eastontc.com']],
+      ['front@eastontc.com', []],
+      ['boss@eastontc.com', ['admins@eastontc.com']],
+      ['gone@eastontc.com', null],
+    ])
+    const resolve = groupAccess({
+      directory: { groupsOf: async email => (memberships.has(email) ? memberships.get(email)! : []) },
+      grants: memoryGrants([
+        { group: 'Kids-Coaches@eastontc.com', scope: 'docs:read' },
+        { group: '*', scope: 'leaderboard:read' },
+      ]),
+      adminGroup: testConfig.adminGroup,
+    })
+    const expected: [string, { role: Role; scopes: string[] } | null][] = [
+      ['kids@eastontc.com', { role: 'coach', scopes: ['docs:read', 'leaderboard:read'] }],
+      ['front@eastontc.com', { role: 'coach', scopes: ['leaderboard:read'] }],
+      ['boss@eastontc.com', { role: 'admin', scopes: ['leaderboard:read'] }],
+      ['gone@eastontc.com', null],
+    ]
+    for (const [email, access] of expected) expect(await resolve(email)).toEqual(access)
+
+    const now = () => Date.parse('2026-10-15T20:00:00Z')
+    const store = memoryStore(now)
+    const provider = eastonProvider({
+      config: testConfig,
+      store,
+      clients: { getClient: async id => (id === client.client_id ? client : undefined) },
+      keys,
+      google: { ...google, exchange: async () => ({ email: 'front@eastontc.com', name: 'Front' }) },
+      resolveAccess: resolve,
+      now,
+    })
+    const res = { redirect: '' }
+    const c = { redirect: (url: string) => { res.redirect = url; return new Response(null, { status: 302 }) }, res: new Response() }
+    const verifier = randomToken()
+    await provider.authorize(
+      client,
+      { codeChallenge: sha256(verifier), redirectUri: back, scopes: ['docs:read', 'leaderboard:read'] },
+      c as never,
+    )
+    const done = await provider.completeLogin(new URL(res.redirect).searchParams.get('state')!, 'good')
+    expect(done!.consent.scopes).toEqual(['docs:read', 'leaderboard:read'])
+    expect(done!.consent.granted).toEqual(['leaderboard:read'])
+    const code = new URL((await provider.grantConsent(done!.consentToken))!).searchParams.get('code')!
+    const first = await provider.exchangeAuthorizationCode(client, code, verifier, back)
+    expect(first.scope).toBe('leaderboard:read')
+    expect(await provider.verifyBearer(first.access_token)).toMatchObject({ scopes: ['leaderboard:read'] })
+    memberships.set('front@eastontc.com', ['kids-coaches@eastontc.com'])
+    const joined = await provider.exchangeRefreshToken(client, first.refresh_token!)
+    expect(await provider.verifyBearer(joined.access_token)).toMatchObject({ scopes: ['docs:read', 'leaderboard:read'] })
+    memberships.set('front@eastontc.com', [])
+    const left = await provider.exchangeRefreshToken(client, joined.refresh_token!)
+    expect(await provider.verifyBearer(left.access_token)).toMatchObject({ scopes: ['leaderboard:read'] })
+    memberships.set('front@eastontc.com', null)
+    await expect(provider.exchangeRefreshToken(client, left.refresh_token!)).rejects.toThrow('account is no longer allowed')
   })
 })

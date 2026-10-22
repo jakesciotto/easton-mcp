@@ -28,7 +28,7 @@ Reads registered Google Docs as the signed in coach through a service account wi
   because: every Drive call must carry the coach's own delegated token, so Google applies the coach's sharing and the token endpoint answers once per coach per hour
   crossing: coach -> google
   entrances: none
-  refuted: drop the expiry check on the cached token in tokenFor -> the test the drive client acts as the signed in coach and reuses the token until it expires went red (2026-10-22)
+  refuted: drop the expiry check on the cached token in delegatedTokens -> the test the drive client acts as the signed in coach and reuses the token until it expires went red (2026-10-22)
   kinds: credential
   checklist: capability-authorization declared as drive as the coach
   checklist: revalidated-permission dismissed: a token lives one hour and Google checks the coach's sharing on every call

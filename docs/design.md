@@ -74,7 +74,8 @@ Implementation: `@hono/mcp` 0.3.2 ships `mcpAuthRouter`, `StreamableHTTPTranspor
 Roles are resolved at login and embedded in the token. A role change takes effect at the next token refresh, at most one hour later.
 
 ### Scopes
-- `leaderboard:read`, `docs:read`, `leaderboard:write`, `docs:write`. claude.ai requests all four; the consent page shows them. Reads are always granted. Writes are granted to coaches, and admin writes additionally check the role claim.
+- `leaderboard:read`, `docs:read`, `leaderboard:write`, `docs:write`. claude.ai requests all four. Google Groups grant scopes through the `scope_grants` table in the state project: a row maps a group email, or `*` for every signed in account, to one scope. The server reads the coach's direct groups through the Directory API as `GOOGLE_WORKSPACE_ADMIN_EMAIL` at sign in, at the code exchange and at every refresh. The refresh row keeps the consented scopes, and each access token carries the consented scopes the groups grant at that moment, so a group change applies within an hour in both directions without a new sign in. The consent page lists the granted scopes and the withheld ones. An account the directory no longer knows ends its token family. Members of `MCP_ADMIN_GROUP` get the admin role, which admin writes check on top of the scope.
+- The authorization redirect carries `iss` (RFC 9207), and the metadata advertises it, so ChatGPT uses its stable callback and its stable client metadata document.
 
 ## Adapters
 

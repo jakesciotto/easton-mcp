@@ -7,6 +7,8 @@ import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextproto
 import type { AuthContext } from '../mcp/registry.js'
 import type { AuthConfig } from './config.js'
 import type { GoogleLogin } from './google.js'
+import { grantedScopes } from './grants.js'
+import type { ResolveAccess } from './grants.js'
 import type { AuthStore, Role } from './store.js'
 import {
   ACCESS_TTL_S,
@@ -35,9 +37,8 @@ export interface PendingLogin {
 export interface Consent extends PendingLogin {
   subject: string
   role: Role
+  granted: string[]
 }
-
-export type ResolveRole = (email: string) => Promise<Role | null>
 
 export interface ProviderDeps {
   config: AuthConfig
@@ -45,7 +46,7 @@ export interface ProviderDeps {
   clients: OAuthRegisteredClientsStore
   keys: SigningKeys
   google: GoogleLogin
-  resolveRole: ResolveRole
+  resolveAccess: ResolveAccess
   now?: () => number
 }
 
@@ -66,10 +67,17 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
   const now = deps.now ?? Date.now
   const signer = { keys: deps.keys, issuer: deps.config.issuer, audience: deps.config.resourceUrl, now }
   const iso = (offsetS = 0) => new Date(now() + offsetS * 1000).toISOString()
-  const grantedScopes = (requested: string[]) =>
+  const requestedScopes = (requested: string[]) =>
     requested.length === 0 ? deps.config.scopes.filter(s => s !== 'offline_access') : requested
 
-  async function issueTokens(claims: { subject: string; role: Role; scopes: string[]; clientId: string; familyId: string }): Promise<OAuthTokens> {
+  async function issueTokens(claims: {
+    subject: string
+    role: Role
+    scopes: string[]
+    granted: string[]
+    clientId: string
+    familyId: string
+  }): Promise<OAuthTokens> {
     const scopes = claims.scopes.filter(s => s !== 'offline_access')
     const refresh = randomToken()
     await deps.store.putRefreshToken({
@@ -85,11 +93,16 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       createdAt: iso(),
     })
     return {
-      access_token: await mintAccessToken(signer, { ...claims, scopes }),
+      access_token: await mintAccessToken(signer, {
+        subject: claims.subject,
+        role: claims.role,
+        scopes: claims.granted,
+        clientId: claims.clientId,
+      }),
       token_type: 'bearer',
       expires_in: ACCESS_TTL_S,
       refresh_token: refresh,
-      scope: scopes.join(' '),
+      scope: claims.granted.join(' '),
     }
   }
 
@@ -105,7 +118,7 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
         clientId: client.client_id,
         redirectUri: params.redirectUri,
         codeChallenge: params.codeChallenge,
-        scopes: grantedScopes(params.scopes ?? []),
+        scopes: requestedScopes(params.scopes ?? []),
         state: params.state ?? null,
         resource: params.resource?.href ?? null,
         nonce: randomToken(16),
@@ -120,9 +133,14 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       const pending = payload.pending as PendingLogin
       const identity = await deps.google.exchange(googleCode, pending.nonce)
       if (!identity) return null
-      const role = await deps.resolveRole(identity.email)
-      if (!role) return null
-      const consent: Consent = { ...pending, subject: identity.email, role }
+      const access = await deps.resolveAccess(identity.email)
+      if (!access) return null
+      const consent: Consent = {
+        ...pending,
+        subject: identity.email,
+        role: access.role,
+        granted: grantedScopes(pending.scopes, access),
+      }
       return { consentToken: await mintStateToken(signer, { kind: 'consent', consent }), consent }
     },
 
@@ -146,6 +164,7 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       })
       const url = new URL(consent.redirectUri)
       url.searchParams.set('code', code)
+      url.searchParams.set('iss', deps.config.issuer)
       if (consent.state) url.searchParams.set('state', consent.state)
       return url.href
     },
@@ -156,6 +175,7 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       const consent = payload.consent as Consent
       const url = new URL(consent.redirectUri)
       url.searchParams.set('error', 'access_denied')
+      url.searchParams.set('iss', deps.config.issuer)
       if (consent.state) url.searchParams.set('state', consent.state)
       return url.href
     },
@@ -172,7 +192,14 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       }
       if (redirectUri !== row.redirectUri) throw new InvalidGrantError('redirect_uri mismatch')
       if (resource && resource.href !== deps.config.resourceUrl) throw new InvalidGrantError('resource mismatch')
-      return issueTokens({ ...row, familyId: crypto.randomUUID() })
+      const access = await deps.resolveAccess(row.subject)
+      if (!access) throw new InvalidGrantError('account is no longer allowed')
+      return issueTokens({
+        ...row,
+        role: access.role,
+        granted: grantedScopes(row.scopes, access),
+        familyId: crypto.randomUUID(),
+      })
     },
 
     async exchangeRefreshToken(client, refreshToken, scopes, resource) {
@@ -187,12 +214,14 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
       if (resource && resource.href !== deps.config.resourceUrl) throw new InvalidGrantError('resource mismatch')
       const requested = (scopes ?? []).filter(s => s !== 'offline_access')
       if (requested.some(s => !row.scopes.includes(s))) throw new InvalidGrantError('scope exceeds the grant')
-      const granted = requested.length ? requested : row.scopes
-      const role = await deps.resolveRole(row.subject)
-      if (!role) {
+      const consented = requested.length ? requested : row.scopes
+      const access = await deps.resolveAccess(row.subject)
+      if (!access) {
         await deps.store.revokeFamily(row.familyId)
         throw new InvalidGrantError('account is no longer allowed')
       }
+      const { role } = access
+      const granted = grantedScopes(consented, access)
       const next = randomToken()
       const rotated = await deps.store.rotateRefreshToken(hash, {
         tokenHash: sha256(next),
@@ -200,7 +229,7 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
         clientId: row.clientId,
         subject: row.subject,
         role,
-        scopes: granted,
+        scopes: consented,
         expiresAt: row.expiresAt,
         rotatedAt: null,
         revokedAt: null,

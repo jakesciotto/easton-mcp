@@ -1,15 +1,12 @@
-import { SignJWT, importPKCS8 } from 'jose'
-import type { DocsConfig } from './config.js'
+import type { ServiceAccount } from '../../google/account.js'
+import { delegatedTokens } from '../../google/delegation.js'
 import type { RegistryRoot } from './registry.js'
 
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
-export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 export const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
 export const DOC_MIME = 'application/vnd.google-apps.document'
 const FILE_FIELDS = 'id,name,mimeType,modifiedTime,webViewLink,driveId,parents,trashed'
 const TIMEOUT_MS = 15_000
-const TOKEN_TTL_S = 3600
-const TOKEN_MARGIN_MS = 60_000
 const NO_ACCESS = new Set(['forbidden', 'insufficientFilePermissions', 'notFound', 'fileNotFound'])
 
 export interface DriveFile {
@@ -31,7 +28,7 @@ export interface DriveClient {
 }
 
 interface Deps {
-  config: DocsConfig
+  config: ServiceAccount
   fetch: typeof fetch
   now?: () => number
 }
@@ -61,70 +58,7 @@ async function driveError(res: Response, action: string): Promise<{ reason: stri
 }
 
 export function googleDrive(deps: Deps): DriveClient {
-  const now = deps.now ?? Date.now
-  const tokens = new Map<string, { token: Promise<string>; expiresAt: number }>()
-  let key: Promise<CryptoKey | Uint8Array> | null = null
-
-  async function assertion(subject: string): Promise<string> {
-    key ??= importPKCS8(deps.config.privateKey, 'RS256').catch(err => {
-      key = null
-      throw new Error(`GOOGLE_PRIVATE_KEY is not a PKCS8 RSA key: ${err instanceof Error ? err.message : String(err)}`)
-    })
-    const iat = Math.floor(now() / 1000)
-    return new SignJWT({ scope: DRIVE_SCOPE })
-      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-      .setIssuer(deps.config.serviceAccountEmail)
-      .setSubject(subject)
-      .setAudience(GOOGLE_TOKEN_URL)
-      .setIssuedAt(iat)
-      .setExpirationTime(iat + TOKEN_TTL_S)
-      .sign(await key)
-  }
-
-  async function exchange(subject: string): Promise<{ token: string; expiresIn: number }> {
-    const res = await deps.fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: await assertion(subject),
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
-    const body = (await res.json().catch(() => ({}))) as {
-      access_token?: unknown
-      expires_in?: unknown
-      error?: unknown
-      error_description?: unknown
-    }
-    if (!res.ok || typeof body.access_token !== 'string') {
-      const code = typeof body.error === 'string' ? body.error : String(res.status)
-      const detail = typeof body.error_description === 'string' ? ` ${body.error_description}.` : ''
-      throw new Error(
-        `google refused to act as ${subject} (${code}).${detail} Check domain wide delegation for ${DRIVE_SCOPE} on the service account client id.`,
-      )
-    }
-    return { token: body.access_token, expiresIn: typeof body.expires_in === 'number' ? body.expires_in : TOKEN_TTL_S }
-  }
-
-  function tokenFor(rawSubject: string): Promise<string> {
-    const subject = rawSubject.toLowerCase()
-    const hit = tokens.get(subject)
-    if (hit && hit.expiresAt - TOKEN_MARGIN_MS > now()) return hit.token
-    const entry = { token: Promise.resolve(''), expiresAt: now() + TOKEN_TTL_S * 1000 }
-    entry.token = exchange(subject).then(
-      ({ token, expiresIn }) => {
-        entry.expiresAt = now() + expiresIn * 1000
-        return token
-      },
-      err => {
-        tokens.delete(subject)
-        throw err
-      },
-    )
-    tokens.set(subject, entry)
-    return entry.token
-  }
+  const { tokenFor } = delegatedTokens({ account: deps.config, scope: DRIVE_SCOPE, fetch: deps.fetch, now: deps.now })
 
   async function call(subject: string, url: string): Promise<Response> {
     const token = await tokenFor(subject)
