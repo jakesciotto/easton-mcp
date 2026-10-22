@@ -48,7 +48,7 @@ export function createApp(opts: AppOptions) {
   const verify = opts.verify ?? provider.verifyBearer
   const adapters = [
     builtin(VERSION),
-    ...(opts.leaderboard ? [leaderboard(opts.leaderboard)] : []),
+    ...(opts.leaderboard ? [leaderboard(opts.leaderboard, opts.fetch ?? fetch)] : []),
     ...(opts.docs ? [docs(opts.docs)] : []),
   ]
   app.get('/health', c => c.json({ ok: true, version: VERSION, adapters: adapters.map(a => a.name) }))

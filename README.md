@@ -52,8 +52,8 @@ Use Node 22 and npm 11 for installs, because npm 10 fails to resolve this tree.
 | GOOGLE_SERVICE_ACCOUNT_EMAIL | Service account with domain-wide delegation on `drive.readonly` and `admin.directory.group.readonly`. Optional: the docs adapter mounts only when both values exist. |
 | GOOGLE_PRIVATE_KEY | Private key of that service account, PEM with literal `\n` line breaks. |
 | GOOGLE_WORKSPACE_ADMIN_EMAIL | Workspace admin the service account impersonates to read a coach's Google Groups. Without it, a coach gets only the scopes the `*` rows grant. |
-| LEADERBOARD_SUPABASE_URL | Leaderboard project URL. Phase 2. Optional: the adapter mounts only when both leaderboard values exist. |
-| LEADERBOARD_SUPABASE_PUBLISHABLE_KEY | Leaderboard publishable key. RLS stays enforced. Phase 2. |
+| LEADERBOARD_SUPABASE_URL | Leaderboard project URL. Optional: the leaderboard adapter mounts only when both leaderboard values exist. |
+| LEADERBOARD_SUPABASE_PUBLISHABLE_KEY | Leaderboard publishable key, so RLS applies. The server refuses a secret or service role key at boot. |
 | MCP_SUPABASE_URL | Server state project URL. |
 | MCP_SUPABASE_SERVICE_ROLE_KEY | Server state project service role key. Never a product project key. |
 | POSTHOG_KEY | PostHog project key for tool call events. Phase 2. |
