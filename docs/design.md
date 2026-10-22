@@ -85,14 +85,14 @@ Each adapter exports `{ name, tools, resources, health }`. A tool declares `inpu
 ### leaderboard (Supabase)
 Reads use the publishable key so RLS applies, the same as the public site. The adapter reads persisted columns only (`competitors.erp`, `rank_order`, `rank_change`, `erp_history`, `peer_averages`) and never recomputes rankings. The math stays in the leaderboard.
 
-Tools:
-- `search_competitors({ name, academy?, belt?, age_group?, limit })` read
-- `get_competitor({ id })` profile, belt, ERP, rank, rank change, every entry, ERP history. read
-- `list_competitions({ year?, include_disabled? })` read
-- `get_competition_results({ competition_id, academy?, belt?, age_group? })` read
-- `get_rankings({ belt?, age_group?, gender?, academy?, limit })` read
-- `get_academy_summary({ academy, from?, to? })` medals, entries, active competitors, ERP distribution. read
-- `report_data_issue({ competitor_id?, entry_id?, description })` coach write. Inserts a row in `easton_mcp.data_issues` for Jake to triage. Does not touch leaderboard tables.
+Tools, all read only under `leaderboard:read`, one PostgREST request each:
+- `leaderboard_competitors({ names })` one to ten names or ids. One profile per name with ERP, rank, rank change, the 15 latest entries and the ERP history; several matches answer the candidates with ids.
+- `leaderboard_rankings({ division, academy?, belt?, age_group?, gender?, limit })` stored rank order inside the kids or adults division, at most 100 rows.
+- `leaderboard_competitions({ query?, year?, source?, division?, limit })` enabled events newest first with their entry count.
+- `leaderboard_results({ competitions, academy?, belt?, age_group?, limit })` entries at one to five events by id or name words, grouped by event, at most 200 rows.
+- `leaderboard_academy_stats({ academies, division?, granularity?, from?, to? })` the stored quarterly or monthly snapshot rows where belt, age group, type and competitor are null, which the snapshot cube uses for all values.
+
+The data issue write is out of v1 (Jake, 2026-10-22: read only).
 
 Resources:
 - `easton://leaderboard/weight-classes` the `weight_class_definitions` table
