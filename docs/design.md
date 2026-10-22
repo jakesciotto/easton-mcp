@@ -185,3 +185,77 @@ Future adapters in order: duals (Turso, read), Easton+ (Firestore, read, academy
 - Supabase RLS on leaderboard tables is the only read boundary. The `015` and later migrations enabled RLS on settings and sync tables; verify every table the adapter reads has a public select policy and nothing more.
 - Token lifetime of one hour bounds a role change. Acceptable for v1.
 - claude.ai callback URLs change over time. Keep them in env, not code.
+
+## Rationale by component
+
+The coherence 0.37 specs carried this prose in a `## why` section. Coherence 1.x keeps rationale on the invariant as a `because:` line, so the longer account lives here.
+
+### Easton MCP
+
+Easton MCP is one Hono function on Vercel. Coaches reach it from claude.ai over Streamable HTTP. It owns no domain data. Each product stays the source of truth behind a thin adapter, and a new product attaches without a change to auth or transport.
+
+The server is its own OAuth 2.1 authorization server, because claude.ai needs Dynamic Client Registration and Google does not offer it. Coaches sign in with an eastontc.com Google account. The server issues a one hour JWT with the coach's role and scopes, and validates it on every call. Leaderboard reads use the publishable key, so Row Level Security always applies.
+
+Every write is explicit, idempotent and audited. A write carries an idempotency key and the server returns the stored result on a repeat. Every call writes one audit row. A write never calls a product's sync, scrape or settings path, and admin writes act only on registered documents.
+
+A release is a semver tag that equals the package version and the VERSION constant. Releases come from main only. Secrets live in env only, gitleaks runs in the pre-commit hook and in CI, and the coherence specs are the source of the rules.
+
+### Adapters
+
+Planned invariant, anchored at the registry mount once a second adapter ships: an adapter folder exports exactly one Adapter and the registry contract never changes for a new product.
+
+Auth and transport stay fixed while products join. The registry enforces scope, audit and the output cap for every tool, so an adapter file holds only its schema, its query and its output shape. Order of arrival: docs search for the SOP set, then leaderboard, then duals, plus and matlab. Tools are task tools under a shared prefix per adapter, take names or arrays of names, and make one data round trip per call, so a common coach question costs at most two tool calls.
+
+### Docs adapter
+
+The first docs use is the SOP set. A coach asks how something is done at Easton, Claude calls docs_search with the words of the question, then docs_read with the id or the exact title. A question that names the SOP costs one call. The tool budget for this adapter is three read tools plus the planned admin writes, under the shared prefix docs_.
+
+Each root row is a collection and its title is the collection name, so the kids and the adult shared drives answer as two collections. Every search and read result names the collection of the document, and docs_search takes an optional collection that selects root rows by title, case insensitive, before the Drive call. An unknown collection answers an error that lists the registered names, and docs_list answers the names with their ids, so Claude learns them in one call when a question names a program the titles do not.
+
+The registry is the documents table in the state project. A root row of kind drive admits every document in that shared drive, in one Drive call with corpora drive. A root row of kind folder admits the direct children of that folder, because the Drive query filter in parents matches one level only, and folder rows combine into one call. A doc row admits that one document for docs_read. The registry is read through the service role key and cached for five minutes per function instance, so a warm call makes one Drive round trip for a search. docs_read makes one lookup and one export per name, in parallel across names.
+
+The server never holds a Google SDK. jose signs the delegation assertion for the coach's email and plain fetch calls the token endpoint and the Drive REST API. The token endpoint answers once per coach per hour per instance. Drive exports a Doc as text/markdown, so no converter exists in this repo. Every coach string reaches Drive inside a quoted literal with backslashes and quotes escaped, which is the only escaping the Drive query language defines.
+
+A document the coach cannot open answers found false with the reason, not an error, and a Drive failure on one name stays with that name, so the other names in the same call still answer. Only a 404 and the Drive reasons forbidden, insufficientFilePermissions, notFound and fileNotFound mean no access; a rate limit or an export size limit surfaces with its Drive reason and a retry hint. A name that looks like a Drive id but answers nothing falls through to the title lookup. Two registered documents with one title answer found false and ask for the id. A doc row counts for the title lookup through one get per row. docs_read splits sixty percent of the result cap across the names, because JSON escaping grows markdown, and marks each truncated document. A removed registry row stays readable for up to five minutes on a warm instance, which is the cache price. Sheets and Slides wait for an export type each.
+
+### Leaderboard adapter
+
+Planned invariants, each anchored at its tool once the tool exists: the adapter reads persisted ranking columns and never recomputes a rank or an ERP; every tool requires a leaderboard scope and none reads with the service role; a list tool pages with a cursor and never returns more than one hundred rows; report_data_issue requires an idempotency key and stamps the signed in coach as the reporter.
+
+The leaderboard owns its math. The adapter is a thin read surface over the same publishable key the public site uses, so a coach through Claude sees exactly what the site shows. The one write lands in a data_issues table the leaderboard project owns with its own RLS, and admins accept or reject it there.
+
+Layout: `client.ts` holds the config and the Supabase client, `tools/` holds one file per tool that exports a factory taking the client, `resources/` holds one file per resource, `prompts/` holds one file per prompt once the registry mounts prompts. `index.ts` only assembles the lists.
+
+The adapter mounts in `app.ts` only when both leaderboard env values exist, so the server boots without them and `/health` lists the adapters that are live.
+
+### Auth
+
+The server is its own authorization server. claude.ai identifies itself with a Client ID Metadata Document or registers itself with Dynamic Client Registration, and Google offers neither. So the server publishes its own metadata and delegates only the login to Google.
+
+CIMD comes before DCR because Claude prefers it when the metadata advertises support. A CIMD client id is a URL on an allowed host, so no row is created per connection. The fetch follows no redirect, refuses a document longer than 64 KB, and keeps only the redirect URIs that pass the same allowlist as DCR, so a document on an allowed host cannot send a code elsewhere. DCR stays as the fallback and issues public clients only. Because a CIMD client has no row, the code and refresh token tables carry the client id as plain text with no foreign key to the clients table (migration 0003); the first live consent from claude.ai failed on that key. Every client record carries the full scope list, because the adapter's authorize handler rejects a scope the client did not register and Claude's documents list none.
+
+Loopback redirects ignore the port because native clients such as Claude Code pick a free port at run time (RFC 8252 section 7.3). Every other redirect must match an https entry exactly.
+
+The login is stateless on the server. The authorize call signs the pending request into the Google state parameter, the Google callback verifies that state, exchanges the code, verifies the id token against Google's keys, and requires a verified email in the hosted domain plus the nonce from the state. The consent page carries a second signed token, and only the allow decision mints a code. Codes and refresh tokens are stored as SHA-256 hashes. The adapter's own PKCE check is switched off, so the exchange consumes the code in one atomic take and verifies S256 itself.
+
+Access tokens are EdDSA JWTs with the server's mcp URL as audience, one hour long. Refresh tokens rotate on every use inside one Postgres function, so two concurrent refreshes cannot both win. A refresh token presented after its rotation revokes the whole family, which is the OAuth 2.1 reuse rule. The family keeps the expiry of its first token, thirty days from sign in, so rotation never extends a session; the coach signs in again. Every refresh re-resolves the role, and an account the resolver no longer allows loses its family at once. The token endpoint answers invalid_grant for every dead token, which is what Claude's client expects before it signs the coach in again. The exchange requires the redirect URI and consumes the code on any attempt, so a failed exchange also burns the code.
+
+Two review findings stay open by choice. A replayed code is refused but does not revoke the tokens its first use issued; the code lives five minutes and its first use needed the PKCE verifier, which only the client holds. A consent token can mint more than one code inside its ten minutes; each code carries the same PKCE challenge, so nobody without the verifier can exchange one. Both become store-backed single use if the audit log ever shows a replay.
+
+The role is resolved at login by an injected function. Phase 1 resolves every coach to coach. Phase 3 adds the Directory API group check for admin.
+
+### Transport
+
+Each request builds its own server and transport, because Vercel functions share nothing between calls. The transport runs stateless with JSON responses, so no session id exists to lose.
+
+Every tool carries a title, a scope and the three annotations, because claude.ai grants a read only tool auto permission from readOnlyHint and the directory review requires a title on every tool. A description states what the tool does and when to call it, names the sibling tool a coach question continues with, and never tells Claude how to behave. An error names the input that failed and what a retry should change.
+
+Planned, not yet anchored: the read audit row moves off the response path, the server advertises an instructions field, and audit_log gains a response_bytes column.
+
+The registry enforces scope, not the tool. A tool declares one scope and the registry checks it against the bearer before the handler runs. A tool with the empty scope is open to every signed in coach, and whoami uses it.
+
+Every tool call writes one audit row, whether it succeeds, fails or is denied. The row keeps the input and result only for tools that write.
+
+Outputs are capped at 50,000 characters, well under Claude's 150,000 character limit. A longer result is cut and followed by a block that marks it truncated.
+
+A write tool must carry an idempotency key. The registry looks the key up in the audit log before the handler runs and replays the stored result on a repeat, so a retried write never lands twice. The audit row for a successful write is written after the handler, outside its error path, and a failed audit write after a successful write still returns the result, because the write already happened. A resource carries a scope like a tool. A denied read and a successful read each write an audit row; a read whose handler throws writes none.

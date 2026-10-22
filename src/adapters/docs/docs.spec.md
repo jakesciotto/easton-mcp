@@ -2,34 +2,86 @@
 Reads registered Google Docs as the signed in coach through a service account with domain wide delegation, so Google enforces the coach's own sharing.
 
 ## invariants
-- docs_search returns only documents inside a registered root and nothing when the registry is empty
-- docs_read exports a document as markdown only when it sits in a registered root
-- the drive client acts as the signed in coach and reuses the token until it expires
-- a coach string is quoted so it cannot change the drive filter
-- docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title
-- a collection filter searches only that root, every result names its collection and docs_list answers the registered collections
-
-## works when
-- typechecks
-- boundary "docs_search returns only documents inside a registered root and nothing when the registry is empty" at listInRoots via test "docs_search returns only documents inside a registered root and nothing when the registry is empty"
-- boundary "docs_read exports a document as markdown only when it sits in a registered root" at inRoots via test "docs_read exports a document as markdown only when it sits in a registered root"
-- boundary "the drive client acts as the signed in coach and reuses the token until it expires" at googleDrive via guard "the drive client acts as the signed in coach and reuses the token until it expires"
-- boundary "a coach string is quoted so it cannot change the drive filter" at driveString via guard "a coach string is quoted so it cannot change the drive filter"
-- boundary "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title" at docsRead via guard "docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title"
-- boundary "a collection filter searches only that root, every result names its collection and docs_list answers the registered collections" at selectCollection via guard "a collection filter searches only that root, every result names its collection and docs_list answers the registered collections"
-
-## why
-The first docs use is the SOP set. A coach asks how something is done at Easton, Claude calls docs_search with the words of the question, then docs_read with the id or the exact title. A question that names the SOP costs one call. The tool budget for this adapter is three read tools plus the planned admin writes, under the shared prefix docs_.
-
-Each root row is a collection and its title is the collection name, so the kids and the adult shared drives answer as two collections. Every search and read result names the collection of the document, and docs_search takes an optional collection that selects root rows by title, case insensitive, before the Drive call. An unknown collection answers an error that lists the registered names, and docs_list answers the names with their ids, so Claude learns them in one call when a question names a program the titles do not.
-
-The registry is the documents table in the state project. A root row of kind drive admits every document in that shared drive, in one Drive call with corpora drive. A root row of kind folder admits the direct children of that folder, because the Drive query filter in parents matches one level only, and folder rows combine into one call. A doc row admits that one document for docs_read. The registry is read through the service role key and cached for five minutes per function instance, so a warm call makes one Drive round trip for a search. docs_read makes one lookup and one export per name, in parallel across names.
-
-The server never holds a Google SDK. jose signs the delegation assertion for the coach's email and plain fetch calls the token endpoint and the Drive REST API. The token endpoint answers once per coach per hour per instance. Drive exports a Doc as text/markdown, so no converter exists in this repo. Every coach string reaches Drive inside a quoted literal with backslashes and quotes escaped, which is the only escaping the Drive query language defines.
-
-A document the coach cannot open answers found false with the reason, not an error, and a Drive failure on one name stays with that name, so the other names in the same call still answer. Only a 404 and the Drive reasons forbidden and insufficientFilePermissions mean no access; a rate limit or an export size limit surfaces with its Drive reason and a retry hint. A name that looks like a Drive id but answers nothing falls through to the title lookup. Two registered documents with one title answer found false and ask for the id. A doc row counts for the title lookup through one get per row. docs_read splits sixty percent of the result cap across the names, because JSON escaping grows markdown, and marks each truncated document. A removed registry row stays readable for up to five minutes on a warm instance, which is the cache price. Sheets and Slides wait for an export type each.
-
-## refutations
-- docs_search returns only documents inside a registered root and nothing when the registry is empty: drop the driveId parameter from the drive root call -> RED
-- docs_read exports a document as markdown only when it sits in a registered root: make inRoots answer true -> RED
-- a collection filter searches only that root, every result names its collection and docs_list answers the registered collections: skip the collection filter in selectCollection -> RED
+- registered roots only: docs_search returns only documents inside a registered root and nothing when the registry is empty.
+  over: a registry with one drive root, and an empty registry
+  via: docs_search returns only documents inside a registered root and nothing when the registry is empty
+  because: Google enforces what the coach may read, and the registry decides what the server offers at all, so a search must never reach past the registered roots
+  crossing: coach -> google
+  entrances: none
+  refuted: drop the driveId parameter from the drive root call in listInRoots -> the test docs_search returns only documents inside a registered root and nothing when the registry is empty went red (2026-10-22)
+  kinds: read
+  checklist: scoped-reads declared as registered roots only
+  checklist: redaction dismissed: a document leaves as the coach may read it in Drive, and nothing in it is designated sensitive
+- root check on read: docs_read exports a document as markdown only when it sits in a registered root.
+  over: a document inside a drive root and a document outside every root
+  via: docs_read exports a document as markdown only when it sits in a registered root
+  because: an id a coach pastes must not read a document the registry never admitted, even when the coach could open it in Drive
+  crossing: coach -> google
+  entrances: none
+  refuted: make inRoots answer true -> the test docs_read exports a document as markdown only when it sits in a registered root went red (2026-10-22)
+  kinds: read
+  checklist: scoped-reads declared as root check on read
+  checklist: redaction dismissed: a document leaves as the coach may read it in Drive, and nothing in it is designated sensitive
+- drive as the coach: The drive client acts as the signed in coach and reuses the token until it expires.
+  over: the first call and a second call inside the hour for one coach, and a call after the token expired
+  via: the drive client acts as the signed in coach and reuses the token until it expires
+  because: every Drive call must carry the coach's own delegated token, so Google applies the coach's sharing and the token endpoint answers once per coach per hour
+  crossing: coach -> google
+  entrances: none
+  refuted: drop the expiry check on the cached token in tokenFor -> the test the drive client acts as the signed in coach and reuses the token until it expires went red (2026-10-22)
+  kinds: credential
+  checklist: capability-authorization declared as drive as the coach
+  checklist: revalidated-permission dismissed: a token lives one hour and Google checks the coach's sharing on every call
+  checklist: message-authenticity dismissed: the server signs the assertion itself and accepts no signed message here
+  checklist: encrypted-storage dismissed: the token is held in memory for one function instance and nothing persists
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: separation-of-duties dismissed: no approval policy exists on a read
+- drive through the client: The server reaches the Drive files endpoint only through the drive client.
+  protects: DRIVE_FILES_URL
+  chokepoint: googleDrive
+  from: anywhere
+  because: the files endpoint must be reached only with the coach's delegated token, the fields list and the timeout the client sets
+  crossing: coach -> google
+  kinds: credential
+  checklist: capability-authorization declared as drive as the coach
+  checklist: revalidated-permission dismissed: the delegated token lives one hour and Google checks the coach's sharing on every call
+  checklist: message-authenticity dismissed: no signed message is accepted at this chokepoint
+  checklist: encrypted-storage dismissed: nothing is persisted at this chokepoint
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: separation-of-duties dismissed: no approval policy exists here
+- quoted coach strings: A coach string is quoted so it cannot change the drive filter.
+  over: the strings driveString escapes, with backslashes and single quotes inside them
+  via: a coach string is quoted so it cannot change the drive filter
+  because: the Drive query language defines one escaping, and a coach string outside a quoted literal could widen the search past the roots
+  crossing: coach -> google
+  entrances: none
+  refuted: driveString stops escaping single quotes -> the test a coach string is quoted so it cannot change the drive filter went red (2026-10-22)
+  kinds: encoding, read
+  checklist: semantic-preservation declared as quoted coach strings
+  checklist: canonical-encoding dismissed: the string is a filter value, not an identity
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: scoped-reads declared as registered roots only
+  checklist: redaction dismissed: a document leaves as the coach may read it in Drive
+- one answer per name: docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title.
+  over: a call with several names where one name fails in Drive and one looks like a Drive id but is a title
+  via: docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title
+  because: a coach asks for several SOPs in one call, and one failing name must not sink the others
+  crossing: coach -> google
+  entrances: none
+  refuted: docs_read rethrows a drive failure instead of keeping it to its name -> the test docs_read answers each name on its own, keeps a drive failure to its name and reads a long title as a title went red (2026-10-22)
+  kinds: output
+  checklist: destination-confinement dismissed: the result returns to the caller and follows no hop
+  checklist: redaction dismissed: a document leaves as the coach may read it in Drive
+  checklist: commit-ordered-effects dismissed: a read has no irreversible effect
+  checklist: circuit-breaker-policy dismissed: a Drive failure surfaces with its reason and a retry hint, and nothing opens a breaker
+  checklist: declared-target-coverage dismissed: the names in the call are the whole target set and each answers
+- collections: A collection filter searches only that root, every result names its collection and docs_list answers the registered collections.
+  over: the registered root titles, a filter that names one, a filter that names none, and a result from each root
+  via: a collection filter searches only that root, every result names its collection and docs_list answers the registered collections
+  because: the kids and the adult shared drives answer as two collections, and Claude must learn their names in one call
+  crossing: coach -> google
+  entrances: none
+  refuted: selectCollection returns every root regardless of the collection filter -> the test a collection filter searches only that root, every result names its collection and docs_list answers the registered collections went red (2026-10-22)
+  kinds: read
+  checklist: scoped-reads declared as collections
+  checklist: redaction dismissed: a document leaves as the coach may read it in Drive, and nothing in it is designated sensitive
