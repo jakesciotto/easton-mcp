@@ -45,3 +45,7 @@ jobs:
       - name: Chokepoints
         if: ${{ !cancelled() }}
         run: npx --no -- coherence run --form chokepoint --no-server --session "ci-${{ github.run_id }}" --agent ci
+
+      - name: Totality oracles
+        if: ${{ !cancelled() }}
+        run: npx --no -- coherence run --form totality-oracle --no-server --session "ci-${{ github.run_id }}" --agent ci
