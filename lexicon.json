@@ -44,6 +44,17 @@
     {
       "name": "collection",
       "definition": "A registered root row in the documents table, named by its title, that docs_search can filter on and docs_list answers."
+    },
+    {
+      "name": "google group",
+      "definition": "A group in the eastontc.com Google Workspace directory. A row in scope_grants maps one group email to one scope, and the server reads a coach's direct groups at sign in and refresh.",
+      "aliases": [
+        "google groups"
+      ]
+    },
+    {
+      "name": "google workspace",
+      "definition": "The eastontc.com Google Workspace tenant that owns the accounts, the groups and the shared drives the server reads through the service account."
     }
   ]
 }

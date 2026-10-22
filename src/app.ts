@@ -8,7 +8,7 @@ import { clientsStore } from './auth/clients.js'
 import type { AuthConfig } from './auth/config.js'
 import type { GoogleLogin } from './auth/google.js'
 import { eastonProvider } from './auth/provider.js'
-import type { ResolveRole } from './auth/provider.js'
+import type { ResolveAccess } from './auth/grants.js'
 import { authRoutes, requireBearer } from './auth/routes.js'
 import type { AuthEnv } from './auth/routes.js'
 import type { AuthStore } from './auth/store.js'
@@ -26,7 +26,7 @@ export interface AppOptions {
   google: GoogleLogin
   leaderboard?: LeaderboardConfig
   docs?: DocsDeps
-  resolveRole?: ResolveRole
+  resolveAccess?: ResolveAccess
   fetch?: typeof fetch
   verify?: (token: string) => Promise<AuthContext | null>
   now?: () => number
@@ -41,7 +41,8 @@ export function createApp(opts: AppOptions) {
     clients,
     keys: opts.keys,
     google: opts.google,
-    resolveRole: opts.resolveRole ?? (async () => 'coach'),
+    resolveAccess:
+      opts.resolveAccess ?? (async () => ({ role: 'coach', scopes: opts.config.scopes.filter(s => s !== 'offline_access') })),
     now: opts.now,
   })
   const verify = opts.verify ?? provider.verifyBearer

@@ -103,7 +103,7 @@ describe('a tool call outside the bearer scopes is denied and audited as denied'
     const client = await connect(outer, 'unused')
     const res = await client.callTool({ name: 'docs_write', arguments: { idempotency_key: 'k1' } })
     expect(res.isError).toBe(true)
-    expect((res.content as { text: string }[])[0].text).toBe('scope docs:write is required')
+    expect((res.content as { text: string }[])[0].text).toMatch(/^scope docs:write is required\. Ask an Easton admin to add you to a Google Group that grants docs:write/)
     expect(store.audit()).toHaveLength(1)
     expect(store.audit()[0]).toMatchObject({ tool: 'docs_write', outcome: 'denied', idempotencyKey: 'k1' })
   })

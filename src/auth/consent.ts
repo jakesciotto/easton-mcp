@@ -13,9 +13,13 @@ function escape(value: string): string {
 
 export function consentPage(consent: Consent, clientName: string, consentToken: string): string {
   const host = new URL(consent.redirectUri).host
-  const items = consent.scopes
-    .map(s => `<li>${escape(SCOPE_TEXT[s] ?? s)}</li>`)
-    .join('')
+  const line = (s: string) => `<li>${escape(SCOPE_TEXT[s] ?? s)}</li>`
+  const granted = consent.scopes.filter(s => consent.granted.includes(s))
+  const withheld = consent.scopes.filter(s => !consent.granted.includes(s))
+  const items = granted.length ? granted.map(line).join('') : '<li>No access yet. Your Google Groups grant no Easton scope.</li>'
+  const pending = withheld.length
+    ? `<p>Not granted by your Google Groups. An Easton admin can add you to a group that grants these, and the access starts within an hour without a new sign in.</p><ul>${withheld.map(line).join('')}</ul>`
+    : ''
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -41,6 +45,7 @@ button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg
 <h1>Allow ${escape(clientName)}?</h1>
 <p>Signed in as <code>${escape(consent.subject)}</code>. After you allow, the browser returns to <code>${escape(host)}</code>.</p>
 <ul>${items}</ul>
+${pending}
 <form method="post" action="/oauth/consent" class="row">
 <input type="hidden" name="consent" value="${escape(consentToken)}">
 <button type="submit" name="decision" value="deny">Deny</button>

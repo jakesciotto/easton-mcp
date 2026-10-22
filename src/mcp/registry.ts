@@ -83,7 +83,9 @@ export function createMcpHandler(deps: {
     const audit = (base: Omit<AuditRow, 'outcome' | 'durationMs' | 'result' | 'error'>) =>
       (row: Pick<AuditRow, 'outcome' | 'durationMs'> & Partial<Pick<AuditRow, 'result' | 'error'>>) =>
         deps.store.appendAudit({ result: null, error: null, ...base, ...row })
-    const denied = (scope: string) => ({ isError: true, content: [{ type: 'text' as const, text: `scope ${scope} is required` }] })
+    const deniedText = (scope: string) =>
+    `scope ${scope} is required. Ask an Easton admin to add you to a Google Group that grants ${scope}; access starts at your next token refresh, within an hour.`
+  const denied = (scope: string) => ({ isError: true, content: [{ type: 'text' as const, text: deniedText(scope) }] })
     for (const adapter of deps.adapters) {
       for (const tool of adapter.tools) {
         const write = !tool.annotations.readOnlyHint
@@ -103,7 +105,7 @@ export function createMcpHandler(deps: {
               idempotencyKey,
             })
             if (!allowed(auth, tool.scope)) {
-              await record({ outcome: 'denied', durationMs: 0, error: `scope ${tool.scope} is required` })
+              await record({ outcome: 'denied', durationMs: 0, error: deniedText(tool.scope) })
               return denied(tool.scope)
             }
             if (write && !idempotencyKey) {
@@ -146,8 +148,8 @@ export function createMcpHandler(deps: {
             idempotencyKey: null,
           })
           if (!allowed(auth, resource.scope)) {
-            await record({ outcome: 'denied', durationMs: 0, error: `scope ${resource.scope} is required` })
-            throw new Error(`scope ${resource.scope} is required`)
+            await record({ outcome: 'denied', durationMs: 0, error: deniedText(resource.scope) })
+            throw new Error(deniedText(resource.scope))
           }
           const started = now()
           const text = await resource.read({ auth })

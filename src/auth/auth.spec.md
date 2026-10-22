@@ -189,6 +189,34 @@ The OAuth 2.1 authorization server and resource server: discovery, client resolu
   checklist: encrypted-storage dismissed: a refresh token is stored as its hash
   checklist: key-rotation-compatibility dismissed: a hash is not decrypted
   checklist: separation-of-duties dismissed: no approval policy exists on a refresh
+- group grants: A token carries only the consented scopes the coach Google Groups grant, and a group change applies at the next refresh.
+  over: a coach in a granting group, a coach in no group, a member of the admin group, an account the directory no longer knows, and one coach joining, leaving and then losing the account across three refreshes
+  via: a token carries only the consented scopes the coach Google Groups grant, and a group change applies at the next refresh
+  because: Easton manages access in Google Workspace, so the scope_grants rows map a Google Group to a scope and the server never grants a scope on its own
+  crossing: internet -> coach
+  entrances: none
+  refuted: grantedScopes returns every consented scope without the group filter -> the test a token carries only the consented scopes the coach Google Groups grant, and a group change applies at the next refresh went red (2026-10-22)
+  kinds: credential
+  checklist: capability-authorization declared as group grants
+  checklist: revalidated-permission declared as refresh revalidation
+  checklist: message-authenticity dismissed: the groups come from the Directory API over TLS with a delegated token, and no signed message is accepted
+  checklist: encrypted-storage dismissed: the refresh row keeps the consented scopes, and the granted set lives only in the one hour token
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: separation-of-duties dismissed: a grant row is data an admin writes, and no approval policy exists on a login
+- directory groups: The directory client reads the groups of a coach as the workspace admin, across pages, and answers null for an unknown account.
+  over: a coach whose groups span two pages, a coach in no group, and an account the directory answers 404 for
+  via: the directory client reads the groups of a coach as the workspace admin, across pages, and answers null for an unknown account
+  because: a group read needs an admin identity, a coach in many groups must not lose the later pages, and an unknown account must end its token family
+  crossing: coach -> google
+  entrances: none
+  refuted: groupsOf returns after the first page -> the test the directory client reads the groups of a coach as the workspace admin, across pages, and answers null for an unknown account went red (2026-10-22)
+  kinds: credential
+  checklist: capability-authorization declared as group grants
+  checklist: revalidated-permission dismissed: the groups are read again at every login, code exchange and refresh
+  checklist: message-authenticity dismissed: the server signs the assertion itself and accepts no signed message here
+  checklist: encrypted-storage dismissed: the admin token is held in memory for one function instance and nothing persists
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: separation-of-duties dismissed: no approval policy exists on a read
 - fresh login state: A stale or tampered login state never reaches consent.
   over: a value that is no token, and a token of another kind presented as consent state
   via: a stale or tampered login state never reaches consent
@@ -241,6 +269,19 @@ The OAuth 2.1 authorization server and resource server: discovery, client resolu
   kinds: credential
   checklist: capability-authorization declared as bearer required
   checklist: revalidated-permission dismissed: the guard verifies the bearer on every request
+  checklist: message-authenticity dismissed: no signed message is accepted at this chokepoint
+  checklist: encrypted-storage dismissed: nothing is persisted at this chokepoint
+  checklist: key-rotation-compatibility dismissed: nothing encrypted is retained
+  checklist: separation-of-duties dismissed: no approval policy exists here
+- directory through the client: The server reaches the Directory groups endpoint only through the directory client.
+  protects: DIRECTORY_GROUPS_URL
+  chokepoint: googleDirectory
+  from: anywhere
+  because: the groups endpoint must be reached only with the workspace admin token, the field mask and the timeout the client sets
+  crossing: coach -> google
+  kinds: credential
+  checklist: capability-authorization declared as directory groups
+  checklist: revalidated-permission dismissed: the admin token lives one hour and every login, code exchange and refresh reads the groups again
   checklist: message-authenticity dismissed: no signed message is accepted at this chokepoint
   checklist: encrypted-storage dismissed: nothing is persisted at this chokepoint
   checklist: key-rotation-compatibility dismissed: nothing encrypted is retained

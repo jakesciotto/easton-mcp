@@ -28,6 +28,7 @@ describe('the authorization server metadata advertises S256, the none auth metho
       expect(body.code_challenge_methods_supported).toEqual(['S256'])
       expect(body.token_endpoint_auth_methods_supported).toContain('none')
       expect(body.client_id_metadata_document_supported).toBe(true)
+      expect(body.authorization_response_iss_parameter_supported).toBe(true)
       expect(body.registration_endpoint).toBe('https://mcp.eastontc.com/oauth/register')
       expect(body.scopes_supported).toContain('offline_access')
     },

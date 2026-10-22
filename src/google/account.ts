@@ -1,9 +1,9 @@
-export interface DocsConfig {
+export interface ServiceAccount {
   serviceAccountEmail: string
   privateKey: string
 }
 
-export function docsConfigFromEnv(env: Record<string, string | undefined>): DocsConfig | null {
+export function serviceAccountFromEnv(env: Record<string, string | undefined>): ServiceAccount | null {
   const serviceAccountEmail = env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim()
   const privateKey = env.GOOGLE_PRIVATE_KEY?.trim()
   if (!serviceAccountEmail || !privateKey) return null
