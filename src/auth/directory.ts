@@ -35,7 +35,7 @@ export function googleDirectory(deps: Deps): Directory {
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: { message?: unknown } }
           const message = typeof body.error?.message === 'string' ? body.error.message : `status ${res.status}`
-          throw new Error(`directory groups read failed for ${email}: ${message}`)
+          throw new Error(`directory groups read failed: ${message}`)
         }
         const body = (await res.json()) as { groups?: { email?: unknown }[]; nextPageToken?: unknown }
         for (const g of body.groups ?? []) if (typeof g.email === 'string') groups.push(g.email.toLowerCase())

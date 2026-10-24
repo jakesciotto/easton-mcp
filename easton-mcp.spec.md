@@ -7,6 +7,7 @@ A remote MCP server that gives Easton coaches, through claude.ai, read access to
 - state: the auth, audit and registry rows in the state project, reached with the service role key
 - google: Google's token endpoint, Drive and the Directory API, reached through the service account as the coach, or as the workspace admin for group reads
 - leaderboard: the easton-leaderboard Supabase project, read with its publishable key under Row Level Security
+- posthog: the PostHog project that receives tool events, exceptions and logs, written with its project token
 
 ## entrances
 - route GET /health: the version and the live adapters, for anyone

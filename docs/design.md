@@ -137,7 +137,7 @@ Rate limits: Drive and Sheets reads are capped at 4 concurrent calls per coach w
 - Hono on Node 22 as one Vercel function, the duals pattern. `NODEJS_HELPERS=0` on the project, the known requirement for a Hono function on Vercel.
 - `GET /health` reports version and adapter health without auth.
 - Per-coach rate limit of 60 tool calls per minute, stored in the same Postgres schema.
-- PostHog server events per tool call with coach, tool, duration, outcome.
+- PostHog server events per tool call with the hashed coach subject, tool, adapter, duration and outcome, plus unhandled exceptions and OTLP logs. Telemetry is off unless POSTHOG_KEY and POSTHOG_HOST are both set.
 
 ## Repository
 - New public repo `easton-mcp`, the same conventions as the other Easton repos: semver tags, coherence specs, gitleaks pre-commit and CI, env only for every id, URL and key.
@@ -160,7 +160,8 @@ LEADERBOARD_SUPABASE_URL
 LEADERBOARD_SUPABASE_PUBLISHABLE_KEY   leaderboard reads, RLS enforced
 MCP_SUPABASE_URL
 MCP_SUPABASE_SERVICE_ROLE_KEY          server state project only
-POSTHOG_KEY
+POSTHOG_KEY               PostHog project token (phc_)
+POSTHOG_HOST              PostHog ingest origin, https only
 ```
 
 ## Delivery phases
@@ -260,3 +261,12 @@ Every tool call writes one audit row, whether it succeeds, fails or is denied. T
 Outputs are capped at 50,000 characters, well under Claude's 150,000 character limit. A longer result is cut and followed by a block that marks it truncated.
 
 A write tool must carry an idempotency key. The registry looks the key up in the audit log before the handler runs and replays the stored result on a repeat, so a retried write never lands twice. The audit row for a successful write is written after the handler, outside its error path, and a failed audit write after a successful write still returns the result, because the write already happened. A resource carries a scope like a tool. A denied read and a successful read each write an audit row; a read whose handler throws writes none.
+
+### Telemetry
+
+PostHog is an observer. The app gets a telemetry sink through its options, like every other dependency, and nothing reads `process.env` at import. A sink failure is caught and logged as a warning, so a PostHog outage never fails a tool call or a response. The flush runs after the response through `waitUntil` with a two second timeout, so a slow PostHog adds no latency for the coach. Every event names the coach by the sha256 of the subject, and an exception reaches PostHog with every email in its message and stack replaced by `[email]`, so the email stays in the audit rows. The hash is unsalted, so a person with PostHog access can confirm a guessed email; an HMAC with a server secret closes that if it matters. A failed audit write, a failed replay lookup and a handler throw each send an exception, because the MCP SDK turns them into an error result that never reaches onError. The PostHog and OTLP clients each time out at two seconds. The logs go through an OTLP `LoggerProvider` alone, without the OTEL Node SDK, so no global instrumentation starts.
+
+The per-tool path lives in `invokeTool` in src/mcp/invoke.ts: the scope check, the idempotency replay, the audit row and the telemetry event. `createMcpHandler` only registers tools and resources.
+
+A docs search that spans several collections answers from the collections that answered. A collection the coach cannot open answers as empty, because Drive sharing splits the collections. A collection that fails for another reason appears in `failed` with a fixed retry reason and never the Drive text, and `partial` is true when a collection failed or Drive reported an incomplete search. The search throws only when every collection fails.
+

@@ -58,9 +58,15 @@ function fakeGoogle(files: DriveFile[]) {
     }
     const q = url.searchParams.get('q') ?? ''
     const driveId = url.searchParams.get('driveId')
+    if (driveId === 'driveLOCKED') {
+      return Response.json({ error: { message: 'The user does not have access', errors: [{ reason: 'notFound' }] } }, { status: 404 })
+    }
+    if (driveId === 'driveDOWN') {
+      return Response.json({ error: { message: 'Backend Error', errors: [{ reason: 'backendError' }] } }, { status: 500 })
+    }
     const name = /name = '((?:[^'\\]|\\.)*)'/.exec(q)?.[1]?.replace(/\\(.)/g, '$1')
     const hits = files.filter(f => (driveId ? f.driveId === driveId : true) && (name ? f.name === name : true))
-    return Response.json({ files: hits })
+    return Response.json({ files: hits, incompleteSearch: driveId === 'driveADULT' })
   }
   return { fetch, calls }
 }
@@ -160,5 +166,43 @@ describe('a coach string is quoted so it cannot change the drive filter', () => 
     expect(driveString('back\\slash')).toBe('back\\\\slash')
     expect(inRoots(sops, [{ driveId: 'folderSOP', kind: 'folder', title: 'f', writable: false }])).toBe(true)
     expect(inRoots(stray, roots)).toBe(false)
+  })
+})
+
+describe('a collection that fails in Drive leaves the others answering and marks the search partial', () => {
+  it('holds', async () => {
+    const down: RegistryRoot = { driveId: 'driveDOWN', kind: 'drive', title: 'Down SOPs', writable: false }
+    const locked: RegistryRoot = { driveId: 'driveLOCKED', kind: 'drive', title: 'Locked SOPs', writable: false }
+    const { tool } = adapter([sops, adult], [...roots, down, locked])
+    const res = (await tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as {
+      partial?: boolean
+      failed?: { collection: string; reason: string }[]
+      documents: { id: string }[]
+    }
+    expect(res.documents.map(d => d.id)).toEqual([sops.id])
+    expect(res.partial).toBe(true)
+    expect(res.failed).toEqual([{ collection: 'Down SOPs', reason: 'Drive did not answer for this collection; retry later' }])
+    expect(JSON.stringify(res)).not.toContain('Backend Error')
+
+    const lockedOnly = (await adapter([sops], [...roots, locked]).tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as Record<string, unknown>
+    expect(lockedOnly).not.toHaveProperty('partial')
+
+    const clean = (await adapter([sops], roots).tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as Record<string, unknown>
+    expect(clean).not.toHaveProperty('partial')
+    expect(clean).not.toHaveProperty('failed')
+
+    const cut = (await adapter([adult], programs).tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })) as Record<string, unknown>
+    expect(cut).toMatchObject({ partial: true })
+    expect(cut).not.toHaveProperty('failed')
+
+    const allDown = adapter([sops], [down])
+    await expect(allDown.tool('docs_search').handler({ auth: coach, input: { query: 'opening' } })).rejects.toThrow(/backendError/)
+
+    const half = adapter([sops, adult], [...programs, down])
+    const read = (await half.tool('docs_read').handler({ auth: coach, input: { names: ['Opening the gym', 'Missing SOP'] } })) as {
+      documents: { name: string; found: boolean; reason?: string }[]
+    }
+    expect(read.documents[0]).toMatchObject({ name: 'Opening the gym', found: true })
+    expect(read.documents[1]).toMatchObject({ found: false, reason: expect.stringContaining('Down SOPs did not answer') })
   })
 })

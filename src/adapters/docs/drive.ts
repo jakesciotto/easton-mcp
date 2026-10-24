@@ -7,6 +7,7 @@ export const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
 export const DOC_MIME = 'application/vnd.google-apps.document'
 const FILE_FIELDS = 'id,name,mimeType,modifiedTime,webViewLink,driveId,parents,trashed'
 const TIMEOUT_MS = 15_000
+const LIST_FAILED = 'Drive did not answer for this collection; retry later'
 const NO_ACCESS = new Set(['forbidden', 'insufficientFilePermissions', 'notFound', 'fileNotFound'])
 
 export interface DriveFile {
@@ -20,9 +21,20 @@ export interface DriveFile {
   trashed: boolean
 }
 
+export interface DriveListing {
+  files: DriveFile[]
+  incomplete: boolean
+}
+
+export interface RootsListing {
+  files: DriveFile[]
+  incomplete: boolean
+  failed: { collection: string; reason: string }[]
+}
+
 export interface DriveClient {
   tokenFor(subject: string): Promise<string>
-  list(subject: string, params: Record<string, string>): Promise<DriveFile[]>
+  list(subject: string, params: Record<string, string>): Promise<DriveListing>
   get(subject: string, id: string): Promise<DriveFile | null>
   exportMarkdown(subject: string, id: string): Promise<string | null>
 }
@@ -70,11 +82,15 @@ export function googleDrive(deps: Deps): DriveClient {
     async list(subject, params) {
       const url = new URL(DRIVE_FILES_URL)
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
-      url.searchParams.set('fields', `files(${FILE_FIELDS})`)
+      url.searchParams.set('fields', `incompleteSearch,files(${FILE_FIELDS})`)
       const res = await call(subject, url.href)
-      if (!res.ok) throw (await driveError(res, 'search')).error
-      const body = (await res.json()) as { files?: Record<string, unknown>[] }
-      return (body.files ?? []).map(toFile)
+      if (!res.ok) {
+        const { reason, error } = await driveError(res, 'search')
+        if (res.status === 404 || NO_ACCESS.has(reason)) return { files: [], incomplete: false }
+        throw error
+      }
+      const body = (await res.json()) as { files?: Record<string, unknown>[]; incompleteSearch?: unknown }
+      return { files: (body.files ?? []).map(toFile), incomplete: body.incompleteSearch === true }
     },
     async get(subject, id) {
       const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}`)
@@ -108,26 +124,40 @@ export async function listInRoots(
   roots: RegistryRoot[],
   clause: string,
   limit: number,
-): Promise<DriveFile[]> {
+): Promise<RootsListing> {
   const base = `${clause} and mimeType = '${DOC_MIME}' and trashed = false`
   const shared = { pageSize: String(limit), includeItemsFromAllDrives: 'true', supportsAllDrives: 'true' }
-  const calls: Promise<DriveFile[]>[] = []
+  const calls: { collections: RegistryRoot[]; listing: Promise<DriveListing> }[] = []
   const folders = roots.filter(r => r.kind === 'folder')
   if (folders.length > 0) {
     const parents = folders.map(f => `'${driveString(f.driveId)}' in parents`).join(' or ')
-    calls.push(drive.list(subject, { ...shared, corpora: 'allDrives', q: `${base} and (${parents})` }))
+    calls.push({ collections: folders, listing: drive.list(subject, { ...shared, corpora: 'allDrives', q: `${base} and (${parents})` }) })
   }
   for (const root of roots.filter(r => r.kind === 'drive')) {
-    calls.push(drive.list(subject, { ...shared, corpora: 'drive', driveId: root.driveId, q: base }))
+    calls.push({ collections: [root], listing: drive.list(subject, { ...shared, corpora: 'drive', driveId: root.driveId, q: base }) })
   }
+  const settled = await Promise.allSettled(calls.map(c => c.listing))
+  const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+  if (calls.length > 0 && rejected.length === calls.length) throw rejected[0].reason
   const seen = new Set<string>()
   const files: DriveFile[] = []
-  for (const file of (await Promise.all(calls)).flat()) {
-    if (seen.has(file.id)) continue
-    seen.add(file.id)
-    files.push(file)
-  }
-  return files.slice(0, limit)
+  const failed: RootsListing['failed'] = []
+  let incomplete = false
+  settled.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      for (const root of calls[i].collections) {
+        if (!failed.some(f => f.collection === root.title)) failed.push({ collection: root.title, reason: LIST_FAILED })
+      }
+      return
+    }
+    incomplete ||= result.value.incomplete
+    for (const file of result.value.files) {
+      if (seen.has(file.id)) continue
+      seen.add(file.id)
+      files.push(file)
+    }
+  })
+  return { files: files.slice(0, limit), incomplete, failed }
 }
 
 export function rootOf(file: DriveFile, roots: RegistryRoot[]): RegistryRoot | undefined {

@@ -6,3 +6,4 @@ dist
 .vercel
 *.iam.json
 easton-mcp-*.json
+.claude/skills/
