@@ -30,7 +30,10 @@ export function googleDirectory(deps: Deps): Directory {
         url.searchParams.set('fields', 'groups(email),nextPageToken')
         if (pageToken) url.searchParams.set('pageToken', pageToken)
         const token = await tokens.tokenFor(deps.adminEmail)
-        const res = await deps.fetch(url.href, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+        const res = await deps.fetch(url.href, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        })
         if (res.status === 404) return null
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: { message?: unknown } }

@@ -63,7 +63,9 @@ function toFile(raw: Record<string, unknown>): DriveFile {
 }
 
 async function driveError(res: Response, action: string): Promise<{ reason: string; error: Error }> {
-  const body = (await res.json().catch(() => ({}))) as { error?: { message?: unknown; errors?: { reason?: unknown }[] } }
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: { message?: unknown; errors?: { reason?: unknown }[] }
+  }
   const reason = typeof body.error?.errors?.[0]?.reason === 'string' ? body.error.errors[0].reason : String(res.status)
   const message = typeof body.error?.message === 'string' ? body.error.message : `status ${res.status}`
   return { reason, error: new Error(`drive ${action} failed (${reason}): ${message}`) }
@@ -131,10 +133,16 @@ export async function listInRoots(
   const folders = roots.filter(r => r.kind === 'folder')
   if (folders.length > 0) {
     const parents = folders.map(f => `'${driveString(f.driveId)}' in parents`).join(' or ')
-    calls.push({ collections: folders, listing: drive.list(subject, { ...shared, corpora: 'allDrives', q: `${base} and (${parents})` }) })
+    calls.push({
+      collections: folders,
+      listing: drive.list(subject, { ...shared, corpora: 'allDrives', q: `${base} and (${parents})` }),
+    })
   }
   for (const root of roots.filter(r => r.kind === 'drive')) {
-    calls.push({ collections: [root], listing: drive.list(subject, { ...shared, corpora: 'drive', driveId: root.driveId, q: base }) })
+    calls.push({
+      collections: [root],
+      listing: drive.list(subject, { ...shared, corpora: 'drive', driveId: root.driveId, q: base }),
+    })
   }
   const settled = await Promise.allSettled(calls.map(c => c.listing))
   const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected')

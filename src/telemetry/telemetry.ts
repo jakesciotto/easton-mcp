@@ -71,7 +71,10 @@ export function telemetry(
       attempt('exception', () => sink.exception(scrubbed(error), subject ? sha256(subject) : undefined)),
     flush: async () => {
       try {
-        await withTimeout(Promise.resolve().then(() => sink.flush()), flushTimeoutMs)
+        await withTimeout(
+          Promise.resolve().then(() => sink.flush()),
+          flushTimeoutMs,
+        )
       } catch (err) {
         warn(`telemetry flush failed: ${err instanceof Error ? err.message : String(err)}`)
       }

@@ -33,7 +33,7 @@ Then start Claude Code, type `/mcp`, pick easton and choose Authenticate.
 
 Dev: `npm run dev` serves on port 8787. Check it with `curl localhost:8787/health`.
 
-Test: `npm test`. Gates: `npm run lint`, `npm run typecheck`, `npm run build`.
+Test: `npm test`. Gates: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run build`.
 
 Deploy: Vercel, one function at `api/index.ts`. Set `NODEJS_HELPERS=0` in the project env. `vercel.json` sets the framework to null, because the Hono preset builds a second function from `src/app.ts` that crashes on `/`; `public/` holds the static output Vercel requires. The classifier blocks `vercel deploy --prod` and Supabase migrations from a session, so Jake runs both.
 Use Node 22 and npm 11 for installs, because npm 10 fails to resolve this tree.

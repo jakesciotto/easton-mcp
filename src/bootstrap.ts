@@ -24,7 +24,11 @@ export function createAppFromEnv(env: Record<string, string | undefined>) {
     store: supabaseStore(state.url, state.serviceRoleKey),
     keys: loadSigningKeys(signingKeyFromEnv(env)),
     google: googleLogin({ config: googleConfigFromEnv(env), fetch }),
-    resolveAccess: groupAccess({ directory, grants: supabaseGrants(state.url, state.serviceRoleKey), adminGroup: config.adminGroup }),
+    resolveAccess: groupAccess({
+      directory,
+      grants: supabaseGrants(state.url, state.serviceRoleKey),
+      adminGroup: config.adminGroup,
+    }),
     telemetry: telemetry ? posthogSink(telemetry, { name: 'easton-mcp', version: VERSION }) : undefined,
     leaderboard: leaderboardConfigFromEnv(env) ?? undefined,
     docs: account

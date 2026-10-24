@@ -44,10 +44,7 @@ export function isAllowedRedirect(uri: string, allowed: string[]): boolean {
   return allowed.some(entry => {
     const base = parse(entry)
     return (
-      base !== null &&
-      base.protocol === 'http:' &&
-      base.hostname === url.hostname &&
-      base.pathname === url.pathname
+      base !== null && base.protocol === 'http:' && base.hostname === url.hostname && base.pathname === url.pathname
     )
   })
 }
@@ -69,11 +66,7 @@ function toInfo(row: StoredClient): OAuthClientInformationFull {
   } as OAuthClientInformationFull
 }
 
-function toRow(
-  info: OAuthClientInformationFull,
-  source: StoredClient['source'],
-  at: string,
-): StoredClient {
+function toRow(info: OAuthClientInformationFull, source: StoredClient['source'], at: string): StoredClient {
   const { client_id, client_name, redirect_uris, token_endpoint_auth_method, grant_types, scope } = info
   const metadata = omit(info, CORE_FIELDS)
   return {

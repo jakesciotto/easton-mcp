@@ -15,7 +15,9 @@ export function selectCollection(roots: RegistryRoot[], collection: string | und
   const wanted = collection.toLowerCase()
   const chosen = roots.filter(r => r.title.toLowerCase() === wanted)
   if (chosen.length === 0) {
-    throw new Error(`collection "${collection}" is not registered; registered collections: ${roots.map(r => r.title).join(', ')}`)
+    throw new Error(
+      `collection "${collection}" is not registered; registered collections: ${roots.map(r => r.title).join(', ')}`,
+    )
   }
   return chosen
 }

@@ -60,7 +60,12 @@ export function createMcpHandler(deps: {
       for (const tool of adapter.tools) {
         server.registerTool(
           tool.name,
-          { title: tool.title, description: tool.description, inputSchema: tool.inputSchema, annotations: tool.annotations },
+          {
+            title: tool.title,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: tool.annotations,
+          },
           (args: unknown) => invokeTool(invoke, adapter, tool, auth, args),
         )
       }

@@ -39,9 +39,11 @@ async function resolve(drive: DriveClient, subject: string, roots: RegistryRoot[
     }
   }
   const { files: matches, failed } = await byTitle(drive, subject, roots, name)
-  if (matches.length > 1) return { reason: 'more than one registered document has this title, pass the id from docs_search' }
+  if (matches.length > 1)
+    return { reason: 'more than one registered document has this title, pass the id from docs_search' }
   if (matches[0]) return { file: matches[0] }
-  if (failed.length > 0) return { reason: `no answering collection holds this title; ${failed.join(', ')} did not answer, retry later` }
+  if (failed.length > 0)
+    return { reason: `no answering collection holds this title; ${failed.join(', ')} did not answer, retry later` }
   return { reason: 'no registered document matches this id or title' }
 }
 
@@ -78,7 +80,11 @@ export function docsRead(deps: { drive: DriveClient; registry: DocumentRegistry 
               markdown: text.slice(0, perDoc),
             }
           } catch (err) {
-            return { name, found: false, reason: `${err instanceof Error ? err.message : String(err)}; retry this name` }
+            return {
+              name,
+              found: false,
+              reason: `${err instanceof Error ? err.message : String(err)}; retry this name`,
+            }
           }
         }),
       )

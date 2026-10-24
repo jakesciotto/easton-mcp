@@ -95,16 +95,27 @@ describe('telemetry names a coach by a hash of the subject and never by the emai
     expect(tools).toEqual([
       {
         distinctId: sha256(SUBJECT),
-        event: { tool: 'whoami', adapter: 'core', scope: '', readOnly: true, outcome: 'completed', durationMs: expect.any(Number), replayed: false },
+        event: {
+          tool: 'whoami',
+          adapter: 'core',
+          scope: '',
+          readOnly: true,
+          outcome: 'completed',
+          durationMs: expect.any(Number),
+          replayed: false,
+        },
       },
     ])
     expect(JSON.stringify(tools)).not.toContain('@')
 
     const errors: Error[] = []
-    const sink = telemetry({ ...recording, exception: (error, distinctId) => {
-      errors.push(error as Error)
-      exceptions.push(distinctId)
-    } })
+    const sink = telemetry({
+      ...recording,
+      exception: (error, distinctId) => {
+        errors.push(error as Error)
+        exceptions.push(distinctId)
+      },
+    })
     sink.exception(new Error(`directory read failed for ${SUBJECT}`), SUBJECT)
     expect(exceptions).toEqual([sha256(SUBJECT)])
     expect(errors[0].message).toBe('directory read failed for [email]')
@@ -116,7 +127,9 @@ describe('telemetry turns on only for a project token and an https host and stay
   it('holds', () => {
     const warnings: string[] = []
     const warn = (m: string) => warnings.push(m)
-    expect(telemetryConfigFromEnv({ POSTHOG_KEY: 'phc_abc', POSTHOG_HOST: 'https://us.i.posthog.com/path' }, warn)).toEqual({
+    expect(
+      telemetryConfigFromEnv({ POSTHOG_KEY: 'phc_abc', POSTHOG_HOST: 'https://us.i.posthog.com/path' }, warn),
+    ).toEqual({
       key: 'phc_abc',
       host: 'https://us.i.posthog.com',
     })

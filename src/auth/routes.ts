@@ -56,7 +56,10 @@ export function authRoutes(deps: { config: AuthConfig; provider: EastonProvider 
   app.get('/.well-known/oauth-protected-resource', c => c.json(resource))
   app.get('/.well-known/oauth-protected-resource/mcp', c => c.json(resource))
 
-  app.post('/oauth/register', clientRegistrationHandler({ clientsStore: provider.clientsStore, clientIdGeneration: false }))
+  app.post(
+    '/oauth/register',
+    clientRegistrationHandler({ clientsStore: provider.clientsStore, clientIdGeneration: false }),
+  )
   app.get('/oauth/authorize', authorizeHandler(provider))
   app.post('/oauth/authorize', authorizeHandler(provider))
   app.post('/oauth/token', clientAuth, tokenHandler(provider))

@@ -5,7 +5,10 @@ export interface TelemetryConfig {
 
 type Env = Record<string, string | undefined>
 
-export function telemetryConfigFromEnv(env: Env, warn: (message: string) => void = console.warn): TelemetryConfig | null {
+export function telemetryConfigFromEnv(
+  env: Env,
+  warn: (message: string) => void = console.warn,
+): TelemetryConfig | null {
   const key = env.POSTHOG_KEY?.trim()
   const host = env.POSTHOG_HOST?.trim()
   if (!key && !host) return null

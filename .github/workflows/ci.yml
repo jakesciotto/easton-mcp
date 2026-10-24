@@ -15,6 +15,7 @@ jobs:
       - name: version is semver and equals VERSION
         run: |
           node -e "const p=require('./package.json').version;const a=require('fs').readFileSync('src/app.ts','utf8').match(/VERSION = '([^']+)'/)[1];for(const v of [p,a]){if(!/^\d+\.\d+\.\d+$/.test(v)){console.error('version is not MAJOR.MINOR.PATCH, got '+v);process.exit(1)}}if(p!==a){console.error('version fields disagree',{p,a});process.exit(1)}console.log('version '+p)"
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

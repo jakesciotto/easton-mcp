@@ -44,7 +44,10 @@ const probe: Adapter = {
   health: async () => true,
 }
 
-async function connect(app: { request: (input: string, init?: RequestInit) => Response | Promise<Response> }, token: string) {
+async function connect(
+  app: { request: (input: string, init?: RequestInit) => Response | Promise<Response> },
+  token: string,
+) {
   const client = new Client({ name: 'test', version: '0' })
   const transport = new StreamableHTTPClientTransport(new URL('https://mcp.eastontc.com/mcp'), {
     requestInit: { headers: { authorization: `Bearer ${token}` } },
@@ -92,7 +95,13 @@ describe('whoami answers the subject, role and scopes of the bearer and writes o
     })
     const rows = store.audit()
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ subject: 'coach@eastontc.com', tool: 'whoami', outcome: 'ok', input: null, result: null })
+    expect(rows[0]).toMatchObject({
+      subject: 'coach@eastontc.com',
+      tool: 'whoami',
+      outcome: 'ok',
+      input: null,
+      result: null,
+    })
     expect(rows[0].inputHash).toMatch(/^[\w-]{43}$/)
   })
 })
@@ -103,7 +112,9 @@ describe('a tool call outside the bearer scopes is denied and audited as denied'
     const client = await connect(outer, 'unused')
     const res = await client.callTool({ name: 'docs_write', arguments: { idempotency_key: 'k1' } })
     expect(res.isError).toBe(true)
-    expect((res.content as { text: string }[])[0].text).toMatch(/^scope docs:write is required\. Ask an Easton admin to add you to a Google Group that grants docs:write/)
+    expect((res.content as { text: string }[])[0].text).toMatch(
+      /^scope docs:write is required\. Ask an Easton admin to add you to a Google Group that grants docs:write/,
+    )
     expect(store.audit()).toHaveLength(1)
     expect(store.audit()[0]).toMatchObject({ tool: 'docs_write', outcome: 'denied', idempotencyKey: 'k1' })
   })

@@ -15,18 +15,38 @@ describe('a coach completes registration, google sign in, consent and the code e
     const { client_id } = await register(app)
     const verifier = randomToken()
     const { code } = await obtainCode(app, client_id, verifier)
-    const res = await exchange(app, { grant_type: 'authorization_code', client_id, code, code_verifier: verifier, redirect_uri: redirect, resource })
+    const res = await exchange(app, {
+      grant_type: 'authorization_code',
+      client_id,
+      code,
+      code_verifier: verifier,
+      redirect_uri: redirect,
+      resource,
+    })
     expect(res.status).toBe(200)
-    const tokens = (await res.json()) as { access_token: string; refresh_token: string; scope: string; token_type: string }
+    const tokens = (await res.json()) as {
+      access_token: string
+      refresh_token: string
+      scope: string
+      token_type: string
+    }
     expect(tokens.token_type).toBe('bearer')
     expect(tokens.scope).toBe('leaderboard:read docs:read')
     const mcp = await app.request('/mcp', {
       method: 'POST',
-      headers: { authorization: `Bearer ${tokens.access_token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      headers: {
+        authorization: `Bearer ${tokens.access_token}`,
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+      },
       body: JSON.stringify(initialize),
     })
     expect(mcp.status).toBe(200)
-    const refreshed = await exchange(app, { grant_type: 'refresh_token', client_id, refresh_token: tokens.refresh_token })
+    const refreshed = await exchange(app, {
+      grant_type: 'refresh_token',
+      client_id,
+      refresh_token: tokens.refresh_token,
+    })
     expect(refreshed.status).toBe(200)
     const reused = await exchange(app, { grant_type: 'refresh_token', client_id, refresh_token: tokens.refresh_token })
     expect(reused.status).toBe(400)

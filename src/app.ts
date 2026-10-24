@@ -67,7 +67,8 @@ export function createApp(opts: AppOptions) {
     keys: opts.keys,
     google: opts.google,
     resolveAccess:
-      opts.resolveAccess ?? (async () => ({ role: 'coach', scopes: opts.config.scopes.filter(s => s !== 'offline_access') })),
+      opts.resolveAccess ??
+      (async () => ({ role: 'coach', scopes: opts.config.scopes.filter(s => s !== 'offline_access') })),
     now: opts.now,
   })
   const verify = opts.verify ?? provider.verifyBearer

@@ -122,8 +122,9 @@ export function memoryStore(now: Clock = Date.now): MemoryStore {
     },
     async findAudit(subject, tool, idempotencyKey) {
       return (
-        audit.find(r => r.subject === subject && r.tool === tool && r.idempotencyKey === idempotencyKey && r.outcome === 'ok') ??
-        null
+        audit.find(
+          r => r.subject === subject && r.tool === tool && r.idempotencyKey === idempotencyKey && r.outcome === 'ok',
+        ) ?? null
       )
     },
     audit() {

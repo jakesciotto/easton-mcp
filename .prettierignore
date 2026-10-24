@@ -1,0 +1,10 @@
+node_modules
+dist
+.vercel
+.coherence
+.claude
+public
+package-lock.json
+lexicon.json
+*.md
+.github

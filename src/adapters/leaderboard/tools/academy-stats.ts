@@ -43,7 +43,13 @@ export function leaderboardAcademyStats(client: LeaderboardClient, now: () => nu
       if (args.to) params.push(['and', `(period_date.lte.${args.to})`])
       if (args.division) params.push(['age_division', `eq.${args.division}`])
       const rows = await client.select<Record<string, unknown>>('stats_snapshots', params)
-      return { from, to: args.to ?? null, granularity: args.granularity, periods: rows.slice(0, ROW_LIMIT), truncated: rows.length > ROW_LIMIT }
+      return {
+        from,
+        to: args.to ?? null,
+        granularity: args.granularity,
+        periods: rows.slice(0, ROW_LIMIT),
+        truncated: rows.length > ROW_LIMIT,
+      }
     },
   }
 }
