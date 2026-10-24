@@ -11,8 +11,7 @@ import type { SigningKeys } from './tokens.js'
 
 export const testConfig: AuthConfig = authConfigFromEnv({
   MCP_PUBLIC_URL: 'https://mcp.eastontc.com',
-  MCP_ALLOWED_REDIRECTS:
-    'https://claude.ai/api/mcp/auth_callback,http://localhost/callback,http://127.0.0.1/callback',
+  MCP_ALLOWED_REDIRECTS: 'https://claude.ai/api/mcp/auth_callback,http://localhost/callback,http://127.0.0.1/callback',
   MCP_CIMD_HOSTS: 'claude.ai',
   MCP_ADMIN_GROUP: 'admins@eastontc.com',
 })
@@ -90,7 +89,14 @@ export async function bearerFor(app: App): Promise<string> {
   const { client_id } = await register(app)
   const verifier = randomToken()
   const { code } = await obtainCode(app, client_id, verifier)
-  const res = await exchange(app, { grant_type: 'authorization_code', client_id, code, code_verifier: verifier, redirect_uri: redirect, resource })
+  const res = await exchange(app, {
+    grant_type: 'authorization_code',
+    client_id,
+    code,
+    code_verifier: verifier,
+    redirect_uri: redirect,
+    resource,
+  })
   expect(res.status).toBe(200)
   return ((await res.json()) as { access_token: string }).access_token
 }

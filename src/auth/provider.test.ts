@@ -59,14 +59,24 @@ async function login(p: ReturnType<typeof setup>, verifier = randomToken()) {
   }
   await p.provider.authorize(
     client,
-    { codeChallenge: sha256(verifier), redirectUri: client.redirect_uris[0], scopes: ['leaderboard:read'], state: 'xyz' },
+    {
+      codeChallenge: sha256(verifier),
+      redirectUri: client.redirect_uris[0],
+      scopes: ['leaderboard:read'],
+      state: 'xyz',
+    },
     c as never,
   )
   const state = new URL(res.redirect).searchParams.get('state')!
   const done = await p.provider.completeLogin(state, 'good')
   const location = await p.provider.grantConsent(done!.consentToken)
   const code = new URL(location!).searchParams.get('code')!
-  return { code, verifier, state: new URL(location!).searchParams.get('state'), iss: new URL(location!).searchParams.get('iss') }
+  return {
+    code,
+    verifier,
+    state: new URL(location!).searchParams.get('state'),
+    iss: new URL(location!).searchParams.get('iss'),
+  }
 }
 
 describe('an access token carries the server url as audience and is refused for another audience or after expiry', () => {
@@ -74,8 +84,17 @@ describe('an access token carries the server url as audience and is refused for 
     const config = testConfig
     const now = () => Date.parse('2026-10-15T20:00:00Z')
     const signer = { keys, issuer: config.issuer, audience: config.resourceUrl, now }
-    const token = await mintAccessToken(signer, { subject: 'a@eastontc.com', role: 'coach', scopes: ['docs:read'], clientId: 'c' })
-    expect(await verifyAccessToken(signer, token)).toMatchObject({ subject: 'a@eastontc.com', role: 'coach', scopes: ['docs:read'] })
+    const token = await mintAccessToken(signer, {
+      subject: 'a@eastontc.com',
+      role: 'coach',
+      scopes: ['docs:read'],
+      clientId: 'c',
+    })
+    expect(await verifyAccessToken(signer, token)).toMatchObject({
+      subject: 'a@eastontc.com',
+      role: 'coach',
+      scopes: ['docs:read'],
+    })
     expect(await verifyAccessToken({ ...signer, audience: 'https://other.example/mcp' }, token)).toBeNull()
     expect(await verifyAccessToken({ ...signer, now: () => now() + 3601 * 1000 }, token)).toBeNull()
   })
@@ -89,7 +108,10 @@ describe('the login flow ends in a code bound to the client, the redirect and th
     expect(iss).toBe(p.config.issuer)
     const tokens = await p.provider.exchangeAuthorizationCode(client, code, verifier, client.redirect_uris[0])
     expect(tokens.scope).toBe('leaderboard:read')
-    expect(await p.provider.verifyBearer(tokens.access_token)).toMatchObject({ subject: 'coach+22@eastontc.com', role: 'coach' })
+    expect(await p.provider.verifyBearer(tokens.access_token)).toMatchObject({
+      subject: 'coach+22@eastontc.com',
+      role: 'coach',
+    })
   })
 })
 
@@ -136,13 +158,19 @@ describe('a refresh re-resolves the role, keeps the family expiry and ends when 
     p.roles.set('coach+22@eastontc.com', null)
     await expect(p.provider.exchangeRefreshToken(client, second.refresh_token!)).rejects.toThrow()
     expect((await p.store.getRefreshToken(sha256(second.refresh_token!)))?.revokedAt).not.toBeNull()
-    expect(await p.provider.completeLogin((await loginState(p)), 'good')).toBeNull()
+    expect(await p.provider.completeLogin(await loginState(p), 'good')).toBeNull()
   })
 })
 
 async function loginState(p: ReturnType<typeof setup>) {
   const res = { redirect: '' }
-  const c = { redirect: (url: string) => { res.redirect = url; return new Response(null, { status: 302 }) }, res: new Response() }
+  const c = {
+    redirect: (url: string) => {
+      res.redirect = url
+      return new Response(null, { status: 302 })
+    },
+    res: new Response(),
+  }
   await p.provider.authorize(client, { codeChallenge: sha256('v'), redirectUri: back, scopes: [] }, c as never)
   return new URL(res.redirect).searchParams.get('state')!
 }
@@ -192,7 +220,13 @@ describe('a token carries only the consented scopes the coach Google Groups gran
       now,
     })
     const res = { redirect: '' }
-    const c = { redirect: (url: string) => { res.redirect = url; return new Response(null, { status: 302 }) }, res: new Response() }
+    const c = {
+      redirect: (url: string) => {
+        res.redirect = url
+        return new Response(null, { status: 302 })
+      },
+      res: new Response(),
+    }
     const verifier = randomToken()
     await provider.authorize(
       client,
@@ -208,11 +242,15 @@ describe('a token carries only the consented scopes the coach Google Groups gran
     expect(await provider.verifyBearer(first.access_token)).toMatchObject({ scopes: ['leaderboard:read'] })
     memberships.set('front@eastontc.com', ['kids-coaches@eastontc.com'])
     const joined = await provider.exchangeRefreshToken(client, first.refresh_token!)
-    expect(await provider.verifyBearer(joined.access_token)).toMatchObject({ scopes: ['docs:read', 'leaderboard:read'] })
+    expect(await provider.verifyBearer(joined.access_token)).toMatchObject({
+      scopes: ['docs:read', 'leaderboard:read'],
+    })
     memberships.set('front@eastontc.com', [])
     const left = await provider.exchangeRefreshToken(client, joined.refresh_token!)
     expect(await provider.verifyBearer(left.access_token)).toMatchObject({ scopes: ['leaderboard:read'] })
     memberships.set('front@eastontc.com', null)
-    await expect(provider.exchangeRefreshToken(client, left.refresh_token!)).rejects.toThrow('account is no longer allowed')
+    await expect(provider.exchangeRefreshToken(client, left.refresh_token!)).rejects.toThrow(
+      'account is no longer allowed',
+    )
   })
 })

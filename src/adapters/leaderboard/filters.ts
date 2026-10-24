@@ -3,8 +3,19 @@ import { pgrstQuote } from './client.js'
 
 export const DIVISIONS = ['kids', 'adults'] as const
 export const BELTS = [
-  'white', 'grey-white', 'grey', 'grey-black', 'yellow', 'yellow-black', 'orange', 'orange-black',
-  'green', 'blue', 'purple', 'brown', 'black',
+  'white',
+  'grey-white',
+  'grey',
+  'grey-black',
+  'yellow',
+  'yellow-black',
+  'orange',
+  'orange-black',
+  'green',
+  'blue',
+  'purple',
+  'brown',
+  'black',
 ] as const
 
 export const division = z.enum(DIVISIONS)

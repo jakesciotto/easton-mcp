@@ -14,7 +14,11 @@ export function authorizationServerMetadata(config: AuthConfig): OAuthMetadata {
     token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
     scopes_supported: config.scopes,
   }
-  return { ...base, client_id_metadata_document_supported: true, authorization_response_iss_parameter_supported: true } as OAuthMetadata
+  return {
+    ...base,
+    client_id_metadata_document_supported: true,
+    authorization_response_iss_parameter_supported: true,
+  } as OAuthMetadata
 }
 
 export function protectedResourceMetadata(config: AuthConfig): OAuthProtectedResourceMetadata {

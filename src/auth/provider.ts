@@ -240,7 +240,12 @@ export function eastonProvider(deps: ProviderDeps): EastonProvider {
         throw new InvalidGrantError('refresh token reused')
       }
       return {
-        access_token: await mintAccessToken(signer, { subject: row.subject, role, scopes: granted, clientId: row.clientId }),
+        access_token: await mintAccessToken(signer, {
+          subject: row.subject,
+          role,
+          scopes: granted,
+          clientId: row.clientId,
+        }),
         token_type: 'bearer',
         expires_in: ACCESS_TTL_S,
         refresh_token: next,

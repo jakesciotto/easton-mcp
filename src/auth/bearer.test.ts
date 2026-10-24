@@ -31,7 +31,11 @@ describe('a request to mcp without a bearer token answers 401 with the resource 
   it('passes a verified token to the mcp handler and answers 405 to GET and DELETE', async () => {
     const ok = await app.request('/mcp', {
       method: 'POST',
-      headers: { authorization: 'Bearer good', 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      headers: {
+        authorization: 'Bearer good',
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+      },
       body: JSON.stringify(initialize),
     })
     expect(ok.status).toBe(200)

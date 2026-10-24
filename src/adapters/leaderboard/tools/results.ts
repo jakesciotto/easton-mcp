@@ -60,7 +60,12 @@ export function leaderboardResults(client: LeaderboardClient): ToolDef {
       const kept = rows.slice(0, args.limit)
       const events = new Map<string, { id: string; name: string; date: string; entries: Record<string, unknown>[] }>()
       for (const r of kept) {
-        const event = events.get(r.competition_id) ?? { id: r.competition_id, name: r.competition_name, date: r.date, entries: [] }
+        const event = events.get(r.competition_id) ?? {
+          id: r.competition_id,
+          name: r.competition_name,
+          date: r.date,
+          entries: [],
+        }
         event.entries.push({
           competitor_id: r.competitor_id,
           competitor: r.competitor_name,

@@ -8,7 +8,10 @@ const SCOPE_TEXT: Record<string, string> = {
 }
 
 function escape(value: string): string {
-  return value.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] ?? ch)
+  return value.replace(
+    /[&<>"']/g,
+    ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] ?? ch,
+  )
 }
 
 export function consentPage(consent: Consent, clientName: string, consentToken: string): string {
@@ -16,7 +19,9 @@ export function consentPage(consent: Consent, clientName: string, consentToken: 
   const line = (s: string) => `<li>${escape(SCOPE_TEXT[s] ?? s)}</li>`
   const granted = consent.scopes.filter(s => consent.granted.includes(s))
   const withheld = consent.scopes.filter(s => !consent.granted.includes(s))
-  const items = granted.length ? granted.map(line).join('') : '<li>No access yet. Your Google Groups grant no Easton scope.</li>'
+  const items = granted.length
+    ? granted.map(line).join('')
+    : '<li>No access yet. Your Google Groups grant no Easton scope.</li>'
   const pending = withheld.length
     ? `<p>Not granted by your Google Groups. An Easton admin can add you to a group that grants these, and the access starts within an hour without a new sign in.</p><ul>${withheld.map(line).join('')}</ul>`
     : ''

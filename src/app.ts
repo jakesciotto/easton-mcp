@@ -1,5 +1,7 @@
+import { waitUntil } from '@vercel/functions'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import { docs } from './adapters/docs/index.js'
 import type { DocsDeps } from './adapters/docs/index.js'
 import { leaderboard } from './adapters/leaderboard/index.js'
@@ -16,6 +18,8 @@ import type { SigningKeys } from './auth/tokens.js'
 import { builtin } from './mcp/builtin.js'
 import { createMcpHandler } from './mcp/registry.js'
 import type { AuthContext } from './mcp/registry.js'
+import { noSink, telemetry as createTelemetry } from './telemetry/telemetry.js'
+import type { TelemetrySink } from './telemetry/telemetry.js'
 
 export const VERSION = '0.1.0'
 
@@ -27,6 +31,8 @@ export interface AppOptions {
   leaderboard?: LeaderboardConfig
   docs?: DocsDeps
   resolveAccess?: ResolveAccess
+  telemetry?: TelemetrySink
+  defer?: (work: Promise<unknown>) => void
   fetch?: typeof fetch
   verify?: (token: string) => Promise<AuthContext | null>
   now?: () => number
@@ -34,6 +40,25 @@ export interface AppOptions {
 
 export function createApp(opts: AppOptions) {
   const app = new Hono<AuthEnv>()
+  const telemetry = createTelemetry(opts.telemetry ?? noSink)
+  const defer = opts.defer ?? waitUntil
+  app.use(async (_c, next) => {
+    try {
+      await next()
+    } finally {
+      try {
+        defer(telemetry.flush())
+      } catch (err) {
+        console.warn(`telemetry defer failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+  })
+  app.onError((error, c) => {
+    if (error instanceof HTTPException) return error.getResponse()
+    console.error(error)
+    telemetry.exception(error, c.get('auth')?.subject)
+    return c.json({ error: { code: 'server_error', message: 'internal error' } }, 500)
+  })
   const clients = clientsStore({ store: opts.store, config: opts.config, fetch: opts.fetch ?? fetch, now: opts.now })
   const provider = eastonProvider({
     config: opts.config,
@@ -42,7 +67,8 @@ export function createApp(opts: AppOptions) {
     keys: opts.keys,
     google: opts.google,
     resolveAccess:
-      opts.resolveAccess ?? (async () => ({ role: 'coach', scopes: opts.config.scopes.filter(s => s !== 'offline_access') })),
+      opts.resolveAccess ??
+      (async () => ({ role: 'coach', scopes: opts.config.scopes.filter(s => s !== 'offline_access') })),
     now: opts.now,
   })
   const verify = opts.verify ?? provider.verifyBearer
@@ -56,7 +82,7 @@ export function createApp(opts: AppOptions) {
   app.post(
     '/mcp',
     requireBearer(verify, opts.config),
-    createMcpHandler({ adapters, store: opts.store, now: opts.now, version: VERSION }),
+    createMcpHandler({ adapters, store: opts.store, telemetry, now: opts.now, version: VERSION }),
   )
   const notAllowed = (c: Context) =>
     c.json({ error: { code: 'method_not_allowed', message: 'use POST' } }, 405, { allow: 'POST' })
