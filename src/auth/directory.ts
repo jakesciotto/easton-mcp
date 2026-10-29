@@ -30,12 +30,15 @@ export function googleDirectory(deps: Deps): Directory {
         url.searchParams.set('fields', 'groups(email),nextPageToken')
         if (pageToken) url.searchParams.set('pageToken', pageToken)
         const token = await tokens.tokenFor(deps.adminEmail)
-        const res = await deps.fetch(url.href, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+        const res = await deps.fetch(url.href, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        })
         if (res.status === 404) return null
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: { message?: unknown } }
           const message = typeof body.error?.message === 'string' ? body.error.message : `status ${res.status}`
-          throw new Error(`directory groups read failed for ${email}: ${message}`)
+          throw new Error(`directory groups read failed: ${message}`)
         }
         const body = (await res.json()) as { groups?: { email?: unknown }[]; nextPageToken?: unknown }
         for (const g of body.groups ?? []) if (typeof g.email === 'string') groups.push(g.email.toLowerCase())

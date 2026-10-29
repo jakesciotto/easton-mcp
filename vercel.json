@@ -12,7 +12,5 @@
       "destination": "/api/index"
     }
   ],
-  "regions": [
-    "iad1"
-  ]
+  "regions": ["iad1"]
 }

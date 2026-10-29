@@ -31,7 +31,9 @@ export function leaderboardConfigFromEnv(env: Record<string, string | undefined>
   const publishableKey = env.LEADERBOARD_SUPABASE_PUBLISHABLE_KEY?.trim()
   if (!url || !publishableKey) return null
   if (isSecretKey(publishableKey)) {
-    throw new Error('LEADERBOARD_SUPABASE_PUBLISHABLE_KEY holds a secret or service role key; use the publishable key so RLS applies')
+    throw new Error(
+      'LEADERBOARD_SUPABASE_PUBLISHABLE_KEY holds a secret or service role key; use the publishable key so RLS applies',
+    )
   }
   return { url, publishableKey }
 }
@@ -58,6 +60,13 @@ export function leaderboardClient(config: LeaderboardConfig, fetchImpl: typeof f
   }
   return {
     select,
-    ping: () => select('competitions', [['select', 'id'], ['limit', '1']]).then(() => true, () => false),
+    ping: () =>
+      select('competitions', [
+        ['select', 'id'],
+        ['limit', '1'],
+      ]).then(
+        () => true,
+        () => false,
+      ),
   }
 }

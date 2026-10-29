@@ -24,12 +24,50 @@ const profile = (id: string, name: string, erp: number, rank: number) => ({
 })
 
 const tables: Record<string, unknown[]> = {
-  competitors: [profile('jake-sciotto-adults', 'Jake Sciotto', 5.4, 176), profile('ann-smith', 'Ann Smith', 9.1, 3), profile('bob-smith', 'Bob Smith', 2.2, 1)],
-  competitions: [{ id: 'naga', name: 'NAGA Denver', date: '2026-10-17', source: 'smoothcomp', age_division: 'adults', entries: [{ count: 81 }] }],
-  entries: [
-    { competitor_id: 'ann-smith', competitor_name: 'Ann Smith', academy: 'Easton Training Center - Boulder', belt: 'blue', age_group: '30+', age_division: 'adults', division: 'Blue 30+', type: 'gi', placement: 1, gold: 1, silver: 0, bronze: 0, wins: 3, losses: 0, competition_id: 'naga', competition_name: 'NAGA Denver', date: '2026-10-17' },
+  competitors: [
+    profile('jake-sciotto-adults', 'Jake Sciotto', 5.4, 176),
+    profile('ann-smith', 'Ann Smith', 9.1, 3),
+    profile('bob-smith', 'Bob Smith', 2.2, 1),
   ],
-  stats_snapshots: [{ period_date: '2026-07-01', academy: 'Easton Training Center - Boulder', age_division: 'kids', unique_athletes: 9 }],
+  competitions: [
+    {
+      id: 'naga',
+      name: 'NAGA Denver',
+      date: '2026-10-17',
+      source: 'smoothcomp',
+      age_division: 'adults',
+      entries: [{ count: 81 }],
+    },
+  ],
+  entries: [
+    {
+      competitor_id: 'ann-smith',
+      competitor_name: 'Ann Smith',
+      academy: 'Easton Training Center - Boulder',
+      belt: 'blue',
+      age_group: '30+',
+      age_division: 'adults',
+      division: 'Blue 30+',
+      type: 'gi',
+      placement: 1,
+      gold: 1,
+      silver: 0,
+      bronze: 0,
+      wins: 3,
+      losses: 0,
+      competition_id: 'naga',
+      competition_name: 'NAGA Denver',
+      date: '2026-10-17',
+    },
+  ],
+  stats_snapshots: [
+    {
+      period_date: '2026-07-01',
+      academy: 'Easton Training Center - Boulder',
+      age_division: 'kids',
+      unique_athletes: 9,
+    },
+  ],
 }
 
 function fake() {
@@ -98,9 +136,16 @@ describe('every leaderboard tool reads through the client with the publishable k
     }
     const jwt = (role: string) => `x.${Buffer.from(JSON.stringify({ role })).toString('base64url')}.y`
     for (const key of ['sb_secret_abc', jwt('service_role'), jwt('authenticated')]) {
-      expect(() => leaderboardConfigFromEnv({ LEADERBOARD_SUPABASE_URL: config.url, LEADERBOARD_SUPABASE_PUBLISHABLE_KEY: key })).toThrow(/publishable key/)
+      expect(() =>
+        leaderboardConfigFromEnv({ LEADERBOARD_SUPABASE_URL: config.url, LEADERBOARD_SUPABASE_PUBLISHABLE_KEY: key }),
+      ).toThrow(/publishable key/)
     }
-    expect(leaderboardConfigFromEnv({ LEADERBOARD_SUPABASE_URL: config.url, LEADERBOARD_SUPABASE_PUBLISHABLE_KEY: jwt('anon') })).not.toBeNull()
+    expect(
+      leaderboardConfigFromEnv({
+        LEADERBOARD_SUPABASE_URL: config.url,
+        LEADERBOARD_SUPABASE_PUBLISHABLE_KEY: jwt('anon'),
+      }),
+    ).not.toBeNull()
   })
 })
 
@@ -130,7 +175,10 @@ describe('a coach string reaches the leaderboard filter only inside a quoted lit
 describe('leaderboard_competitors answers each name on its own with one profile, the candidates for several matches, or not found', () => {
   it('holds', async () => {
     const adapter = leaderboard(config, fake().fetch)
-    const res = (await adapter.tools[0].handler({ auth: coach, input: { names: ['Sciotto', 'Smith', 'bob-smith', 'Nobody'] } })) as {
+    const res = (await adapter.tools[0].handler({
+      auth: coach,
+      input: { names: ['Sciotto', 'Smith', 'bob-smith', 'Nobody'] },
+    })) as {
       competitors: { name: string; found: boolean; profile?: { id: string }; candidates?: { id: string }[] }[]
     }
     const [jake, smith, bob, nobody] = res.competitors
@@ -152,6 +200,8 @@ describe('leaderboard_rankings returns the stored rank and ERP in stored rank or
     expect(google.calls[0].url.searchParams.get('order')).toBe('rank_order.asc')
     expect(google.calls[0].url.searchParams.get('age_division')).toBe('eq.adults')
     const stored = tables.competitors as { id: string; erp: number; rank_order: number }[]
-    expect(res.competitors.map(c => [c.position, c.id, c.erp, c.rank_order])).toEqual(stored.map((s, i) => [i + 1, s.id, s.erp, s.rank_order]))
+    expect(res.competitors.map(c => [c.position, c.id, c.erp, c.rank_order])).toEqual(
+      stored.map((s, i) => [i + 1, s.id, s.erp, s.rank_order]),
+    )
   })
 })

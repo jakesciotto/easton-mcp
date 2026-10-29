@@ -77,8 +77,7 @@ describe('a client id that is a CIMD url on an allowed host resolves to its docu
       calls.push(String(url))
       return Response.json(body)
     }) as typeof fetch
-  const build = (body: unknown) =>
-    clientsStore({ store: memoryStore(), config: testConfig, fetch: fakeFetch(body) })
+  const build = (body: unknown) => clientsStore({ store: memoryStore(), config: testConfig, fetch: fakeFetch(body) })
 
   it('resolves the document on an allowed host and stores it', async () => {
     const store = memoryStore()
@@ -90,8 +89,18 @@ describe('a client id that is a CIMD url on an allowed host resolves to its docu
   })
 
   it('keeps only the allowed redirect uris from the document and refuses a document with none', async () => {
-    const mixed = { client_id: id, redirect_uris: ['https://evil.example/cb', 'http://localhost/callback', 'https://claude.ai/api/mcp/auth_callback'] }
-    expect((await build(mixed).getClient(id))?.redirect_uris).toEqual(['http://localhost/callback', 'https://claude.ai/api/mcp/auth_callback'])
+    const mixed = {
+      client_id: id,
+      redirect_uris: [
+        'https://evil.example/cb',
+        'http://localhost/callback',
+        'https://claude.ai/api/mcp/auth_callback',
+      ],
+    }
+    expect((await build(mixed).getClient(id))?.redirect_uris).toEqual([
+      'http://localhost/callback',
+      'https://claude.ai/api/mcp/auth_callback',
+    ])
     expect(await build({ client_id: id, redirect_uris: ['https://evil.example/cb'] }).getClient(id)).toBeUndefined()
   })
 

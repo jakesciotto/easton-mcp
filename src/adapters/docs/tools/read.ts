@@ -14,7 +14,12 @@ const input = z.object({
 
 type Resolved = { file: DriveFile } | { reason: string }
 
-async function byTitle(drive: DriveClient, subject: string, roots: RegistryRoot[], title: string): Promise<DriveFile[]> {
+async function byTitle(
+  drive: DriveClient,
+  subject: string,
+  roots: RegistryRoot[],
+  title: string,
+): Promise<{ files: DriveFile[]; failed: string[] }> {
   const docs = roots.filter(r => r.kind === 'doc')
   const [listed, single] = await Promise.all([
     listInRoots(drive, subject, roots, `name = '${driveString(title)}'`, 2),
@@ -22,7 +27,8 @@ async function byTitle(drive: DriveClient, subject: string, roots: RegistryRoot[
   ])
   const named = single.filter((f): f is DriveFile => f !== null && f.name === title && isReadableDoc(f))
   const seen = new Set<string>()
-  return [...listed, ...named].filter(f => !seen.has(f.id) && seen.add(f.id))
+  const files = [...listed.files, ...named].filter(f => !seen.has(f.id) && seen.add(f.id))
+  return { files, failed: listed.failed.map(f => f.collection) }
 }
 
 async function resolve(drive: DriveClient, subject: string, roots: RegistryRoot[], name: string): Promise<Resolved> {
@@ -32,9 +38,13 @@ async function resolve(drive: DriveClient, subject: string, roots: RegistryRoot[
       return isReadableDoc(file) ? { file } : { reason: 'this id is not a Google Doc or sits in the trash' }
     }
   }
-  const matches = await byTitle(drive, subject, roots, name)
-  if (matches.length > 1) return { reason: 'more than one registered document has this title, pass the id from docs_search' }
-  return matches[0] ? { file: matches[0] } : { reason: 'no registered document matches this id or title' }
+  const { files: matches, failed } = await byTitle(drive, subject, roots, name)
+  if (matches.length > 1)
+    return { reason: 'more than one registered document has this title, pass the id from docs_search' }
+  if (matches[0]) return { file: matches[0] }
+  if (failed.length > 0)
+    return { reason: `no answering collection holds this title; ${failed.join(', ')} did not answer, retry later` }
+  return { reason: 'no registered document matches this id or title' }
 }
 
 export function docsRead(deps: { drive: DriveClient; registry: DocumentRegistry }): ToolDef {
@@ -70,7 +80,11 @@ export function docsRead(deps: { drive: DriveClient; registry: DocumentRegistry 
               markdown: text.slice(0, perDoc),
             }
           } catch (err) {
-            return { name, found: false, reason: `${err instanceof Error ? err.message : String(err)}; retry this name` }
+            return {
+              name,
+              found: false,
+              reason: `${err instanceof Error ? err.message : String(err)}; retry this name`,
+            }
           }
         }),
       )

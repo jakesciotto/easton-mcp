@@ -85,3 +85,16 @@ Reads registered Google Docs as the signed in coach through a service account wi
   kinds: read
   checklist: scoped-reads declared as collections
   checklist: redaction dismissed: a document leaves as the coach may read it in Drive, and nothing in it is designated sensitive
+- partial search: A collection that fails in Drive leaves the others answering and marks the search partial.
+  over: a search across an answering root, a failing root and a root where Drive reports an incomplete search, and a search where every root fails
+  via: a collection that fails in Drive leaves the others answering and marks the search partial
+  because: one shared drive that errors must not hide the SOPs in the others, and Claude must know when a result may miss documents
+  crossing: coach -> google
+  entrances: none
+  refuted: listInRoots throws when any collection fails -> the test a collection that fails in Drive leaves the others answering and marks the search partial went red (2026-10-24)
+  kinds: output
+  checklist: destination-confinement dismissed: the result returns to the caller and follows no hop
+  checklist: redaction dismissed: a failure reason names the collection and the Drive reason, never a document
+  checklist: commit-ordered-effects dismissed: a search has no irreversible effect
+  checklist: circuit-breaker-policy dismissed: a failing collection answers its reason per call, and nothing opens a breaker
+  checklist: declared-target-coverage declared as partial search

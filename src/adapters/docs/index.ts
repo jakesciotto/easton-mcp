@@ -15,6 +15,10 @@ export function docs(deps: DocsDeps): Adapter {
     name: 'docs',
     tools: [docsList(deps), docsSearch(deps), docsRead(deps)],
     resources: [],
-    health: () => deps.registry.roots().then(() => true, () => false),
+    health: () =>
+      deps.registry.roots().then(
+        () => true,
+        () => false,
+      ),
   }
 }

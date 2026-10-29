@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { DELEGATION_TOKEN_URL } from '../google/delegation.js'
 import { DIRECTORY_GROUPS_URL, DIRECTORY_SCOPE, googleDirectory } from './directory.js'
 
-const privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' }) as string
+const privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
+  type: 'pkcs8',
+  format: 'pem',
+}) as string
 const account = { serviceAccountEmail: 'mcp@easton-mcp.iam.gserviceaccount.com', privateKey }
 
 describe('the directory client reads the groups of a coach as the workspace admin, across pages, and answers null for an unknown account', () => {
@@ -25,7 +28,9 @@ describe('the directory client reads the groups of a coach as the workspace admi
       expect(url.origin + url.pathname).toBe(DIRECTORY_GROUPS_URL)
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer admin-token')
       const page = pages[`${url.searchParams.get('userKey')}:${url.searchParams.get('pageToken') ?? ''}`]
-      return page ? Response.json(page) : Response.json({ error: { message: 'Resource Not Found: userKey' } }, { status: 404 })
+      return page
+        ? Response.json(page)
+        : Response.json({ error: { message: 'Resource Not Found: userKey' } }, { status: 404 })
     }
     const directory = googleDirectory({ account, adminEmail: 'Admin@eastontc.com', fetch, now: () => 1_000_000 })
     const expected: [string, string[] | null][] = [
